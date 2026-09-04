@@ -1,21 +1,42 @@
 @extends('layouts.app')
 
-@section('title', 'Ledger Barang - ' . ($activeWarehouse['name'] ?? 'Gudang') . ' • StarDust Engine')
-
+@section('title', 'Ledger Barang - ' . ($activeWarehouse->name ?? 'Gudang') . ' • StarDust Engine')
 @section('content')
 <div class="page-header">
     <div>
         <h1 class="page-title">Ledger Inventory & Logistik</h1>
-        <p class="page-subtitle">Sistem Manajemen Barang & Stok Gudang berbasis <strong>StarDust Engine</strong> (SDDPG Multi-Tenant Engine)</p>
+        <p class="page-subtitle">Sistem Manajemen Barang & Stok Gudang berbasis <strong>StarDust Engine</strong> (SDDPG Single-Tenant Engine)</p>
     </div>
     <div style="display: flex; gap: 0.75rem;">
-        <form action="{{ route('inventory.bulk-import') }}" method="POST" style="display: inline;">
-            @csrf
-            <button type="submit" class="btn btn-secondary" id="btn-bulk-import" title="Simulasi Pengadaan Barang Skala Besar">
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                Simulasi bulkWrite()
-            </button>
-        </form>
+        <details style="display: inline-block;">
+            <summary class="btn btn-secondary" id="btn-bulk-import" style="cursor: pointer; list-style: none;" title="Kustomisasi & Jalankan Bulk Write">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:inline; vertical-align:middle; margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                Bulk Write (Kustomisasi)
+            </summary>
+            <form action="{{ route('inventory.bulk-import') }}" method="POST" class="panel" style="position: absolute; z-index: 20; margin-top: 0.5rem; padding: 1rem; min-width: 260px;">
+                @csrf
+                <div style="margin-bottom: 0.75rem;">
+                    <label style="display:block; font-size:0.75rem; color: var(--brass); margin-bottom:0.25rem;">Jumlah Barang</label>
+                    <input type="number" name="count" class="form-control" value="100" min="1" max="5000" style="width:100%;" required>
+                </div>
+                <div style="margin-bottom: 0.75rem;">
+                    <label style="display:block; font-size:0.75rem; color: var(--brass); margin-bottom:0.25rem;">Ukuran Chunk</label>
+                    <input type="number" name="chunk_size" class="form-control" value="500" min="1" max="1000" style="width:100%;">
+                </div>
+                <div style="margin-bottom: 0.75rem;">
+                    <label style="display:block; font-size:0.75rem; color: var(--brass); margin-bottom:0.25rem;">Delay Antar-Chunk (ms)</label>
+                    <input type="number" name="delay_ms" class="form-control" value="0" min="0" max="5000" style="width:100%;">
+                </div>
+                <div style="margin-bottom: 0.75rem;">
+                    <label style="display:block; font-size:0.75rem; color: var(--brass); margin-bottom:0.25rem;">Mode</label>
+                    <select name="mode" class="form-control" style="width:100%;">
+                        <option value="sync">Sync (langsung, maks 1000)</option>
+                        <option value="async">Async (antrian, butuh Reconciler)</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%;">Jalankan</button>
+            </form>
+        </details>
         <a href="{{ route('inventory.create') }}" class="btn btn-primary" id="btn-add-item">
             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             Registrasi Barang Baru
@@ -47,9 +68,7 @@
 <div class="panel">
     <!-- Filter & Search Bar -->
     <form action="{{ route('inventory.index') }}" method="GET" class="filter-bar" id="inventory-filter-form">
-        <input type="hidden" name="warehouse" value="{{ $tenantId }}">
-        
-        <div class="filter-group">
+        <input type="hidden" name="warehouse" value="{{ $warehouseId }}">        <div class="filter-group">
             <input type="text" 
                    name="search" 
                    class="form-control" 
@@ -84,8 +103,7 @@
                 Filter
             </button>
             @if ($currentSearch || $currentCategory || $currentLowStock)
-                <a href="{{ route('inventory.index', ['warehouse' => $tenantId]) }}" class="btn btn-secondary" style="color: var(--text-dim);" id="btn-reset-filter">Reset</a>
-            @endif
+                <a href="{{ route('inventory.index', ['warehouse' => $warehouseId]) }}" class="btn btn-secondary" style="color: var(--text-dim);" id="btn-reset-filter">Reset</a>            @endif
         </div>
     </form>
 
@@ -186,8 +204,7 @@
                 @empty
                     <tr>
                         <td colspan="9" style="text-align: center; padding: 3rem; color: var(--text-dim);">
-                            Tidak ada barang inventory yang ditemukan di {{ $activeWarehouse['name'] }}.
-                        </td>
+                            Tidak ada barang inventory yang ditemukan di {{ $activeWarehouse->name ?? 'Gudang' }}.                        </td>
                     </tr>
                 @endforelse
             </tbody>
@@ -197,7 +214,7 @@
     <!-- StarDust Cursor Pagination -->
     @if ($nextCursor)
         <div style="margin-top: 1.5rem; text-align: center;">
-            <a href="{{ route('inventory.index', array_merge(request()->all(), ['cursor' => $nextCursor, 'warehouse' => $tenantId])) }}" class="btn btn-secondary" id="btn-next-cursor">
+            <a href="{{ route('inventory.index', array_merge(request()->all(), ['cursor' => $nextCursor, 'warehouse' => $warehouseId])) }}" class="btn btn-secondary" id="btn-next-cursor">                
                 Muat Halaman Berikutnya (StarDust Cursor Pagination) →
             </a>
         </div>

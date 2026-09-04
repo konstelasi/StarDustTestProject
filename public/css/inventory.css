@@ -6,39 +6,39 @@
   --bg-card: #1c1815;
   --bg-card-hover: #241f1b;
   --bg-input: #15110e;
-  
+
   --border-color: #3d332a;
   --border-accent: #8c6f43;
   --border-gold: #c99c55;
-  
+
   --primary: #c99c55;
   --primary-hover: #b88a44;
   --primary-glow: rgba(201, 156, 85, 0.2);
-  
+
   --brass: #d4b277;
   --brass-light: #e6cb9a;
   --leather: #2a221b;
   --parchment: #e8d8c3;
-  
+
   --text-main: #e8d8c3;
   --text-muted: #a6947c;
   --text-dim: #7a6a57;
-  
+
   --success: #52a476;
   --success-bg: rgba(82, 164, 118, 0.15);
   --warning: #d99b38;
   --warning-bg: rgba(217, 155, 56, 0.15);
   --danger: #c85a5a;
   --danger-bg: rgba(200, 90, 90, 0.15);
-  
+
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
-  
+
   --font-heading: 'Cinzel', serif;
   --font-body: 'Newsreader', serif;
   --font-mono: 'IBM Plex Mono', monospace;
-  
+
   --transition: all 0.2s ease-in-out;
 }
 
@@ -100,7 +100,7 @@ body {
   font-weight: 700;
   font-size: 1.4rem;
   color: var(--brass-light);
-  box-shadow: inset 0 0 10px rgba(0,0,0,0.6), 0 0 12px var(--primary-glow);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.6), 0 0 12px var(--primary-glow);
 }
 
 .brand-title {
@@ -155,7 +155,7 @@ body {
   background: var(--leather);
   color: var(--brass-light);
   border: 1px solid var(--border-accent);
-  box-shadow: inset 0 0 8px rgba(0,0,0,0.4);
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.4);
 }
 
 /* Main Container */
@@ -176,7 +176,7 @@ body {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 2rem;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
 .warehouse-info {
@@ -257,7 +257,7 @@ body {
   padding: 1.25rem;
   border-radius: var(--radius-sm);
   transition: var(--transition);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .stat-card:hover {
@@ -288,7 +288,7 @@ body {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   padding: 1.5rem;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
 }
 
 .filter-bar {
@@ -328,6 +328,9 @@ body {
 
 select.form-control {
   cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23d4b277'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0.7rem center;
@@ -355,7 +358,7 @@ select.form-control {
   background: linear-gradient(135deg, #a67c3b, #705022);
   color: #fff;
   border: 1px solid var(--border-gold);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 .btn-primary:hover {

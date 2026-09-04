@@ -19,11 +19,11 @@
             </div>
 
             <nav class="nav-menu">
-                <a href="{{ route('inventory.index', ['warehouse' => session('active_warehouse', 1)]) }}" class="nav-link {{ request()->routeIs('inventory.index') ? 'active' : '' }}" id="nav-inventory-link">
+                <a href="{{ route('inventory.index', ['warehouse' => session('active_warehouse', $navCurrentWarehouse->id ?? null)]) }}" class="nav-link {{ request()->routeIs('inventory.index') ? 'active' : '' }}" id="nav-inventory-link">
                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
                     Ledger Barang
                 </a>
-                <a href="{{ route('inventory.create', ['warehouse' => session('active_warehouse', 1)]) }}" class="nav-link {{ request()->routeIs('inventory.create') ? 'active' : '' }}" id="nav-create-link">
+                <a href="{{ route('inventory.create', ['warehouse' => session('active_warehouse', $navCurrentWarehouse->id ?? null)]) }}" class="nav-link {{ request()->routeIs('inventory.create') ? 'active' : '' }}" id="nav-create-link">
                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                     Registrasi Barang
                 </a>
@@ -35,28 +35,29 @@
     <main class="app-container">
 
         <!-- Top Warehouse Context Selector -->
-        @php
-            $whList = config('stardust.warehouses', []);
-            $currentWhId = session('active_warehouse', 1);
-            $currentWh = $whList[$currentWhId] ?? reset($whList);
-        @endphp
+        {{--
+            $navWarehouses / $navCurrentWarehouse are injected by
+            App\Providers\AppServiceProvider's view composer, which reads
+            the real 'gudang' entries from the StarDust engine (single
+            tenant) — NOT a static config array.
+        --}}
         <div class="warehouse-context-bar" id="warehouse-context-bar">
             <div class="warehouse-info">
                 <div class="warehouse-icon-badge">
                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
                 </div>
                 <div>
-                    <div class="warehouse-name">{{ $currentWh['name'] ?? 'Gudang' }} (Tenant #{{ $currentWhId }})</div>
-                    <div class="warehouse-meta">Kode: {{ $currentWh['code'] ?? 'WH' }} • Manajer: {{ $currentWh['manager'] ?? 'Staff' }} • {{ $currentWh['location'] ?? '' }}</div>
+                    <div class="warehouse-name">{{ $navCurrentWarehouse->name ?? 'Gudang' }}</div>
+                    <div class="warehouse-meta">Kode: {{ $navCurrentWarehouse->code ?? '-' }} • Manajer: {{ $navCurrentWarehouse->manager ?? '-' }} • {{ $navCurrentWarehouse->location ?? '' }}</div>
                 </div>
             </div>
 
             <form action="{{ route('inventory.index') }}" method="GET" class="warehouse-selector-form" id="warehouse-switch-form">
-                <label for="warehouse-select" style="font-family: var(--font-heading); font-size: 0.8rem; color: var(--brass);">Pilih Gudang / Tenant:</label>
+                <label for="warehouse-select" style="font-family: var(--font-heading); font-size: 0.8rem; color: var(--brass);">Pilih Gudang:</label>
                 <select name="warehouse" id="warehouse-select" class="form-control" onchange="this.form.submit()" style="width: 220px; font-weight: 600;">
-                    @foreach ($whList as $wId => $w)
-                        <option value="{{ $wId }}" {{ $currentWhId == $wId ? 'selected' : '' }}>
-                            {{ $w['name'] }}
+                    @foreach ($navWarehouses as $w)
+                        <option value="{{ $w->id }}" {{ ($navCurrentWarehouse->id ?? null) == $w->id ? 'selected' : '' }}>
+                            {{ $w->name }}
                         </option>
                     @endforeach
                 </select>

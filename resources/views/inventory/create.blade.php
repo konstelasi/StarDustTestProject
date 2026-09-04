@@ -1,14 +1,14 @@
 @extends('layouts.app')
 
-@section('title', 'Registrasi Barang Baru - ' . ($activeWarehouse['name'] ?? 'Gudang') . ' • StarDust')
+@section('title', 'Registrasi Barang Baru - ' . ($activeWarehouse->name ?? 'Gudang') . ' • StarDust')
 
 @section('content')
 <div class="page-header">
     <div>
         <h1 class="page-title">Registrasi Barang baru</h1>
-        <p class="page-subtitle">Pencatatan ke {{ $activeWarehouse['name'] }} via StarDust Engine (JSON Payload & Slot Indexing)</p>
+                <p class="page-subtitle">Pencatatan ke {{ $activeWarehouse->name ?? 'Gudang' }} via StarDust Engine (JSON Payload & Slot Indexing)</p>
     </div>
-    <a href="{{ route('inventory.index', ['warehouse' => $tenantId]) }}" class="btn btn-secondary" id="btn-back-to-index">
+    <a href="{{ route('inventory.index', ['warehouse' => $warehouseId]) }}" class="btn btn-secondary" id="btn-back-to-index">
         ← Kembali ke Ledger
     </a>
 </div>
@@ -16,7 +16,18 @@
 <div class="panel" style="max-width: 850px;">
     <form action="{{ route('inventory.store') }}" method="POST" id="form-create-inventory">
         @csrf
-        <input type="hidden" name="warehouse" value="{{ $tenantId }}">
+
+        <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; font-family: var(--font-heading); font-size: 0.8rem; color: var(--brass); margin-bottom: 0.4rem;" for="warehouse">Gudang (id_warehouse) *</label>
+            <select name="warehouse" id="warehouse" class="form-control" required style="width: 100%;">
+                @foreach ($warehouses as $w)
+                    <option value="{{ $w->id }}" {{ (old('warehouse', $warehouseId) == $w->id) ? 'selected' : '' }}>
+                        {{ $w->name }} ({{ $w->code ?? '' }})
+                    </option>
+                @endforeach
+            </select>
+            <span style="color: var(--text-dim); font-size: 0.75rem;">Barang direferensikan ke Gudang lewat field biasa `id_warehouse`, bukan tenant terpisah.</span>
+        </div>
 
         <div style="font-family: var(--font-heading); font-size: 1rem; color: var(--brass-light); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);">
             1. Atribut Standar Barang (Standard Slotted Fields)
@@ -89,8 +100,9 @@
             </div>
 
             <div>
-                <label style="display: block; font-family: var(--font-heading); font-size: 0.8rem; color: var(--brass); margin-bottom: 0.4rem;" for="expiry_date">Tanggal Kadaluarsa (YYYY-MM-DD)</label>
-                <input type="text" name="expiry_date" id="expiry_date" class="form-control" value="{{ old('expiry_date') }}" placeholder="Opsional: 2027-12-31" style="width: 100%;">
+                <label style="display: block; font-family: var(--font-heading); font-size: 0.8rem; color: var(--brass); margin-bottom: 0.4rem;" for="expiry_date">Tanggal Kadaluarsa</label>
+                <input type="date" name="expiry_date" id="expiry_date" class="form-control" value="{{ old('expiry_date') }}" style="width: 100%;">
+                <span style="color: var(--text-dim); font-size: 0.7rem;">Disimpan sebagai tipe `datetime` (bukan string) — jadi tetap terindeks & bisa di-query.</span>
             </div>
 
             <div>
@@ -110,7 +122,7 @@
         </div>
 
         <div style="display: flex; gap: 1rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--border-color);">
-            <a href="{{ route('inventory.index', ['warehouse' => $tenantId]) }}" class="btn btn-secondary">Batal</a>
+            <a href="{{ route('inventory.index', ['warehouse' => $warehouseId]) }}" class="btn btn-secondary">Batal</a>
             <button type="submit" class="btn btn-primary" id="btn-submit-create">
                 Simpan Barang ke StarDust Engine
             </button>

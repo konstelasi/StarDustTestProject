@@ -8,6 +8,9 @@ use StarDust\Read\EntryQuery;
 use StarDust\Filter\Ast\LeafNode;
 use StarDust\Filter\Ast\AndNode;
 use StarDust\Write\EntryPayload;
+use StarDust\Write\BulkIngestOptions;
+use App\Support\SkuGenerator;
+use Faker\Factory as FakerFactory;
 
 class InventoryController extends Controller
 {
@@ -15,26 +18,53 @@ class InventoryController extends Controller
     {
     }
 
-    /**
-     * Resolve active warehouse tenant ID and model ID.
-     */
-    private function resolveTenantAndModel(Request $request): array
+    private function tenantId(): int
     {
-        $warehouses = config('stardust.warehouses', []);
-        $tenantId = (int) $request->input('warehouse', session('active_warehouse', config('stardust.tenant_id', 1)));
-        
-        if (!isset($warehouses[$tenantId])) {
-            $tenantId = 1;
+        return (int) config('stardust.tenant_id', 1);
+    }
+
+    private function modelId(int $tenantId, string $modelName): int
+    {
+        $models = $this->stardust->listModels($tenantId);
+        $model = collect($models)->firstWhere('name', $modelName);
+
+        return $model ? $model->modelId : 1;
+    }
+
+    private function loadWarehouses(int $tenantId, int $gudangModelId)
+    {
+        $page = $this->stardust->read(new EntryQuery(
+            tenantId: $tenantId,
+            modelId: $gudangModelId,
+            pageSize: 200,
+        ));
+
+        return collect($page->rows)->map(function ($row) {
+            return (object) array_merge(['id' => $row->id], $row->fields);
+        });
+    }
+
+    private function resolveContext(Request $request): array
+    {
+        $tenantId = $this->tenantId();
+        $gudangModelId = $this->modelId($tenantId, config('stardust.warehouse_model_name', 'gudang'));
+        $barangModelId = $this->modelId($tenantId, config('stardust.item_model_name', 'barang'));
+
+        $warehouses = $this->loadWarehouses($tenantId, $gudangModelId);
+
+        $requestedId = $request->input('warehouse', session('active_warehouse'));
+        $warehouseId = $requestedId !== null ? (int) $requestedId : null;
+
+        $activeWarehouse = $warehouseId !== null ? $warehouses->firstWhere('id', $warehouseId) : null;
+
+        if (!$activeWarehouse) {
+            $activeWarehouse = $warehouses->first();
+            $warehouseId = $activeWarehouse->id ?? null;
         }
 
-        session(['active_warehouse' => $tenantId]);
-        $activeWarehouse = $warehouses[$tenantId];
+        session(['active_warehouse' => $warehouseId]);
 
-        $models = $this->stardust->listModels($tenantId);
-        $productModel = collect($models)->firstWhere('name', config('stardust.model_name', 'product'));
-        $modelId = $productModel ? $productModel->modelId : 1;
-
-        return [$tenantId, $modelId, $activeWarehouse, $warehouses];
+        return [$tenantId, $barangModelId, $warehouseId, $activeWarehouse, $warehouses];
     }
 
     /**
@@ -42,7 +72,7 @@ class InventoryController extends Controller
      */
     public function index(Request $request)
     {
-        [$tenantId, $modelId, $activeWarehouse, $warehouses] = $this->resolveTenantAndModel($request);
+        [$tenantId, $modelId, $warehouseId, $activeWarehouse, $warehouses] = $this->resolveContext($request);
 
         $search = $request->input('search');
         $category = $request->input('category');
@@ -50,6 +80,10 @@ class InventoryController extends Controller
         $cursor = $request->input('cursor');
 
         $filterNodes = [];
+
+        if ($warehouseId !== null) {
+            $filterNodes[] = LeafNode::local('id_warehouse', 'eq', $warehouseId);
+        }
 
         if ($category) {
             $filterNodes[] = LeafNode::local('category', 'eq', $category);
@@ -77,10 +111,13 @@ class InventoryController extends Controller
 
         $entryPage = $this->stardust->read($entryQuery);
 
-        // Fetch all items for stats & category filter options
+         // Fetch all items IN THIS WAREHOUSE for stats & category filter options
+        $warehouseFilter = $warehouseId !== null ? LeafNode::local('id_warehouse', 'eq', $warehouseId) : null;
+
         $allEntriesPage = $this->stardust->read(new EntryQuery(
             tenantId: $tenantId,
             modelId: $modelId,
+            filter: $warehouseFilter,
             pageSize: 500
         ));
 
@@ -121,7 +158,7 @@ class InventoryController extends Controller
             'currentLowStock' => $lowStock,
             'activeWarehouse' => $activeWarehouse,
             'warehouses' => $warehouses,
-            'tenantId' => $tenantId,
+            'warehouseId' => $warehouseId,
         ]);
     }
 
@@ -130,8 +167,8 @@ class InventoryController extends Controller
      */
     public function create(Request $request)
     {
-        [$tenantId, $modelId, $activeWarehouse, $warehouses] = $this->resolveTenantAndModel($request);
-        return view('inventory.create', compact('activeWarehouse', 'warehouses', 'tenantId'));
+        [$tenantId, $modelId, $warehouseId, $activeWarehouse, $warehouses] = $this->resolveContext($request);
+        return view('inventory.create', compact('activeWarehouse', 'warehouses', 'warehouseId'));
     }
 
     /**
@@ -139,9 +176,10 @@ class InventoryController extends Controller
      */
     public function store(Request $request)
     {
-        [$tenantId, $modelId] = $this->resolveTenantAndModel($request);
+        [$tenantId, $modelId, $warehouseId] = $this->resolveContext($request);
 
         $validated = $request->validate([
+            'warehouse' => 'required|integer',
             'name' => 'required|string|max:255',
             'sku' => 'required|string|max:100',
             'category' => 'required|string|max:100',
@@ -155,10 +193,13 @@ class InventoryController extends Controller
 
             // Dynamic schemaless custom attributes
             'batch_number' => 'nullable|string|max:100',
-            'expiry_date' => 'nullable|string|max:50',
+            'expiry_date' => 'nullable|date',
             'warranty_months' => 'nullable|integer|min:0',
             'serial_number' => 'nullable|string|max:100',
         ]);
+
+        $idWarehouse = (int) $validated['warehouse'];
+        unset($validated['warehouse']);
 
         $validated['quantity'] = (int) $validated['quantity'];
         $validated['price'] = (int) $validated['price'];
@@ -168,8 +209,13 @@ class InventoryController extends Controller
             $validated['warranty_months'] = (int) $validated['warranty_months'];
         }
 
+        if (!empty($validated['expiry_date'])) {
+            $validated['expiry_date'] = date('Y-m-d H:i:s', strtotime($validated['expiry_date']));
+        }
+
         // Clean out nulls for extra dynamic fields
         $fields = array_filter($validated, fn($val) => $val !== null && $val !== '');
+        $fields['id_warehouse'] = $idWarehouse;
 
         $payload = new EntryPayload(
             tenantId: $tenantId,
@@ -188,7 +234,7 @@ class InventoryController extends Controller
      */
     public function show(Request $request, int $id)
     {
-        [$tenantId, $modelId, $activeWarehouse, $warehouses] = $this->resolveTenantAndModel($request);
+        [$tenantId, $modelId, $warehouseId, $activeWarehouse, $warehouses] = $this->resolveContext($request);
 
         $entry = $this->stardust->get($tenantId, $id);
 
@@ -206,7 +252,7 @@ class InventoryController extends Controller
      */
     public function edit(Request $request, int $id)
     {
-        [$tenantId, $modelId, $activeWarehouse, $warehouses] = $this->resolveTenantAndModel($request);
+        [$tenantId, $modelId, $warehouseId, $activeWarehouse, $warehouses] = $this->resolveContext($request);
 
         $entry = $this->stardust->get($tenantId, $id);
 
@@ -224,9 +270,10 @@ class InventoryController extends Controller
      */
     public function update(Request $request, int $id)
     {
-        [$tenantId, $modelId] = $this->resolveTenantAndModel($request);
+        [$tenantId, $modelId, $warehouseId] = $this->resolveContext($request);
 
         $validated = $request->validate([
+            'warehouse' => 'required|integer',
             'name' => 'required|string|max:255',
             'sku' => 'required|string|max:100',
             'category' => 'required|string|max:100',
@@ -240,10 +287,13 @@ class InventoryController extends Controller
 
             // Dynamic schemaless custom attributes
             'batch_number' => 'nullable|string|max:100',
-            'expiry_date' => 'nullable|string|max:50',
+            'expiry_date' => 'nullable|date',
             'warranty_months' => 'nullable|integer|min:0',
             'serial_number' => 'nullable|string|max:100',
         ]);
+
+        $idWarehouse = (int) $validated['warehouse'];
+        unset($validated['warehouse']);
 
         $validated['quantity'] = (int) $validated['quantity'];
         $validated['price'] = (int) $validated['price'];
@@ -252,8 +302,12 @@ class InventoryController extends Controller
         if (isset($validated['warranty_months']) && $validated['warranty_months'] !== '') {
             $validated['warranty_months'] = (int) $validated['warranty_months'];
         }
+        if (!empty($validated['expiry_date'])) {
+            $validated['expiry_date'] = date('Y-m-d H:i:s', strtotime($validated['expiry_date']));
+        }
 
         $fields = array_filter($validated, fn($val) => $val !== null && $val !== '');
+        $fields['id_warehouse'] = $idWarehouse;
 
         $this->stardust->updateEntry($tenantId, $id, $fields);
 
@@ -266,7 +320,7 @@ class InventoryController extends Controller
      */
     public function stockIn(Request $request, int $id)
     {
-        [$tenantId] = $this->resolveTenantAndModel($request);
+        [$tenantId] = $this->resolveContext($request);
 
         $amount = (int) $request->input('amount', 1);
         if ($amount <= 0) $amount = 1;
@@ -289,7 +343,7 @@ class InventoryController extends Controller
      */
     public function stockOut(Request $request, int $id)
     {
-        [$tenantId] = $this->resolveTenantAndModel($request);
+        [$tenantId] = $this->resolveContext($request);
 
         $amount = (int) $request->input('amount', 1);
         if ($amount <= 0) $amount = 1;
@@ -312,65 +366,102 @@ class InventoryController extends Controller
         return redirect()->back()->with('success', "Stok barang '{$fields['name']}' berhasil dikurangi (-{$amount}) di StarDust Engine!");
     }
 
-    /**
-     * Perform StarDust Bulk Ingestion (`bulkWrite`).
+        /**
+     * StarDust Bulk Ingestion — dikustomisasi lewat form: jumlah barang,
+     * ukuran chunk, delay antar-chunk, dan mode (sync/async).
      */
     public function bulkImport(Request $request)
     {
-        [$tenantId, $modelId] = $this->resolveTenantAndModel($request);
+        [$tenantId, $modelId, $warehouseId] = $this->resolveContext($request);
 
-        $sampleBulk = [
-            [
-                'name' => 'Barcode Scanner Honeywell 1470g',
-                'sku' => 'SCN-HON-1470',
-                'category' => 'Hardware Gudang',
-                'quantity' => 15,
-                'price' => 2400000,
-                'unit' => 'Unit',
-                'supplier' => 'PT AutoID Indonesia',
-                'location' => 'Rak D-01',
-                'min_stock' => 5,
-                'description' => '2D Barcode scanner USB high speed',
-            ],
-            [
-                'name' => 'Thermal Label Printer Zebra ZT230',
-                'sku' => 'PRN-ZEB-ZT230',
-                'category' => 'Hardware Gudang',
-                'quantity' => 6,
-                'price' => 11200000,
-                'unit' => 'Unit',
-                'supplier' => 'PT AutoID Indonesia',
-                'location' => 'Rak D-02',
-                'min_stock' => 2,
-                'description' => 'Industrial Thermal Transfer Printer 203dpi',
-            ],
-            [
-                'name' => 'Pallet Plastik Heavy Duty 120x100cm',
-                'sku' => 'PLT-HD-120100',
-                'category' => 'Logistik',
-                'quantity' => 40,
-                'price' => 650000,
-                'unit' => 'Pcs',
-                'supplier' => 'CV Pallet Utama',
-                'location' => 'Area Loading Bay',
-                'min_stock' => 10,
-                'description' => 'Kapasitas statis 4 ton, dinamis 1.5 ton',
-            ],
-        ];
+        $validated = $request->validate([
+            'count' => 'required|integer|min:1|max:5000',
+            'chunk_size' => 'nullable|integer|min:1|max:1000',
+            'delay_ms' => 'nullable|integer|min:0|max:5000',
+            'mode' => 'required|in:sync,async',
+        ]);
 
+        $count = (int) $validated['count'];
+        $chunkSize = (int) ($validated['chunk_size'] ?? 500);
+        $delayMs = (int) ($validated['delay_ms'] ?? 0);
+        $mode = $validated['mode'];
+
+        // Ambil kode gudang aktif supaya SKU dummy tetap konsisten formatnya
+        $gudangModelId = $this->modelId($tenantId, config('stardust.warehouse_model_name', 'gudang'));
+        $activeWh = $this->loadWarehouses($tenantId, $gudangModelId)->firstWhere('id', $warehouseId);
+        $warehouseCode = $activeWh->code ?? 'GEN';
+
+        $faker = FakerFactory::create('id_ID');
+        $categories = ['Elektronik', 'Aksesori', 'Peralatan Kantor', 'Bahan Konsumsi', 'Perawatan', 'Power & Battery', 'Logistik', 'Hardware Gudang', 'Kabel & Adaptor'];
+        $sequenceByCategory = [];
         $payloads = [];
-        foreach ($sampleBulk as $item) {
-            $payloads[] = new EntryPayload(
-                tenantId: $tenantId,
-                modelId: $modelId,
-                fields: $item
-            );
+
+        for ($i = 0; $i < $count; $i++) {
+            $category = $faker->randomElement($categories);
+            $sequenceByCategory[$category] = ($sequenceByCategory[$category] ?? 0) + 1;
+
+            $item = [
+                'id_warehouse' => $warehouseId,
+                'name' => ucfirst($faker->words(3, true)),
+                'sku' => SkuGenerator::generate($category, $warehouseCode, $sequenceByCategory[$category]),
+                'category' => $category,
+                'quantity' => $faker->numberBetween(0, 200),
+                'price' => $faker->numberBetween(15, 25000) * 1000,
+                'unit' => $faker->randomElement(['Pcs', 'Unit', 'Box', 'Botol', 'Bungkus']),
+                'supplier' => $faker->company(),
+                'location' => 'Rak ' . strtoupper($faker->lexify('?')) . '-' . $faker->numberBetween(1, 20),
+                'min_stock' => $faker->numberBetween(2, 20),
+                'description' => $faker->sentence(6),
+            ];
+
+            $payloads[] = new EntryPayload(tenantId: $tenantId, modelId: $modelId, fields: $item);
         }
 
-        $result = $this->stardust->bulkWrite($payloads);
+        // --- Mode ASYNC: masuk antrian (stardust_import_jobs), diproses
+        //     oleh proses Reconciler yang jalan terpisah (`vendor/bin/stardust reconciler`).
+        if ($mode === 'async') {
+            try {
+                $jobId = $this->stardust->submitBulkWrite($tenantId, $payloads);
 
-        return redirect()->route('inventory.index', ['warehouse' => $tenantId])
-            ->with('success', "Simulasi StarDust bulkWrite() berhasil! Memproses {$result->entriesCommitted} barang secara kolektif.");
+                return redirect()->route('inventory.index', ['warehouse' => $warehouseId])
+                    ->with('success', "Bulk write ASYNC disubmit! Job #{$jobId->jobId} ({$count} barang). Job ini BARU diproses kalau proses Reconciler dijalankan terpisah: `vendor\\bin\\stardust reconciler`. Cek status: " . route('inventory.bulk-import.status', $jobId->jobId));
+            } catch (\Throwable $e) {
+                return redirect()->back()->with('error', 'Gagal submit async bulk write: ' . $e->getMessage());
+            }
+        }
+
+        // --- Mode SYNC: langsung ditulis saat itu juga, dibagi per-chunk.
+        try {
+            $options = new BulkIngestOptions(chunkSize: $chunkSize, interChunkDelayMicros: $delayMs * 1000);
+            $result = $this->stardust->bulkWrite($payloads, $options);
+
+            return redirect()->route('inventory.index', ['warehouse' => $warehouseId])
+                ->with('success', "Bulk write SYNC berhasil! {$result->entriesCommitted} barang tersimpan dalam " . count($result->chunks) . " chunk (ukuran chunk: {$chunkSize}, delay: {$delayMs}ms).");
+        } catch (\StarDust\Exception\PayloadTooLargeException $e) {
+            return redirect()->back()->with('error', "Jumlah {$count} terlalu besar untuk mode Sync (maksimal 1000). Gunakan mode Async untuk jumlah lebih besar.");
+        }
+    }
+
+    /**
+     * Cek status job bulk write async (dibaca dari stardust_import_jobs).
+     */
+    public function bulkImportStatus(Request $request, int $jobId)
+    {
+        [$tenantId, , $warehouseId] = $this->resolveContext($request);
+
+        $job = $this->stardust->getImportJob($tenantId, $jobId);
+
+        if (!$job) {
+            return redirect()->route('inventory.index', ['warehouse' => $warehouseId])
+                ->with('error', "Job import #{$jobId} tidak ditemukan.");
+        }
+
+        $message = "Job #{$job->id} — status: {$job->status} — {$job->entriesWritten}/{$job->entryCount} entri tertulis"
+            . ($job->chunks !== null ? " ({$job->chunks} chunk selesai)" : '')
+            . ($job->status === 'pending' ? '. Jalankan `vendor\\bin\\stardust reconciler` untuk memproses.' : '.');
+
+        return redirect()->route('inventory.index', ['warehouse' => $warehouseId])
+            ->with($job->status === 'failed' ? 'error' : 'success', $message);
     }
 
     /**
@@ -378,16 +469,16 @@ class InventoryController extends Controller
      */
     public function destroy(Request $request, int $id)
     {
-        [$tenantId] = $this->resolveTenantAndModel($request);
+        [$tenantId, $modelId, $warehouseId] = $this->resolveContext($request);
 
         $deleted = $this->stardust->deleteEntry($tenantId, $id);
 
         if (!$deleted) {
-            return redirect()->route('inventory.index', ['warehouse' => $tenantId])
+            return redirect()->route('inventory.index', ['warehouse' => $warehouseId])
                 ->with('error', 'Gagal menghapus barang atau barang tidak ditemukan.');
         }
 
-        return redirect()->route('inventory.index', ['warehouse' => $tenantId])
+        return redirect()->route('inventory.index', ['warehouse' => $warehouseId])
             ->with('success', 'Barang berhasil dihapus dari StarDust Engine!');
     }
 }
