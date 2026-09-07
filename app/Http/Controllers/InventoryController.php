@@ -28,7 +28,11 @@ class InventoryController extends Controller
         $models = $this->stardust->listModels($tenantId);
         $model = collect($models)->firstWhere('name', $modelName);
 
-        return $model ? $model->modelId : 1;
+        if (!$model) {
+            throw new \RuntimeException("Model StarDust '{$modelName}' tidak ditemukan untuk tenant {$tenantId}. Silakan jalankan `php artisan inventory:setup --seed` terlebih dahulu.");
+        }
+
+        return $model->modelId;
     }
 
     private function loadWarehouses(int $tenantId, int $gudangModelId)
