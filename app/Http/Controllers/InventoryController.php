@@ -248,7 +248,7 @@ class InventoryController extends Controller
 
         $item = (object) array_merge(['id' => $entry->id], $entry->fields);
 
-        return view('inventory.show', compact('item', 'activeWarehouse', 'warehouses', 'tenantId'));
+        return view('inventory.show', compact('item', 'activeWarehouse', 'warehouses', 'warehouseId'));
     }
 
     /**
@@ -266,7 +266,7 @@ class InventoryController extends Controller
 
         $item = (object) array_merge(['id' => $entry->id], $entry->fields);
 
-        return view('inventory.edit', compact('item', 'activeWarehouse', 'warehouses', 'tenantId'));
+        return view('inventory.edit', compact('item', 'activeWarehouse', 'warehouses', 'warehouseId'));
     }
 
     /**
