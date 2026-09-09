@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 
 class SetupInventoryModel extends Command
 {
-    protected $signature = 'inventory:setup {--seed : Seed sample inventory data}';
+    protected $signature = 'inventory:setup {--fresh : Wipe all StarDust tables before setup} {--seed : Seed sample inventory data}';
     protected $description = 'Bootstrap StarDust engine (single-tenant) and register the gudang & barang models.';
 
     public function handle(StarDust $stardust): int
@@ -21,14 +21,30 @@ class SetupInventoryModel extends Command
         $warehouseModelName = config('stardust.warehouse_model_name', 'gudang');
         $itemModelName = config('stardust.item_model_name', 'barang');
 
+        if ($this->option('fresh')) {
+            $this->warn('Wiping all StarDust database tables...');
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+            $tables = DB::select('SHOW TABLES');
+            $dbName = DB::getDatabaseName();
+            $columnName = "Tables_in_" . $dbName;
+            foreach ($tables as $table) {
+                $tableName = $table->$columnName ?? reset($table);
+                if (str_starts_with($tableName, 'stardust_') || str_starts_with($tableName, 'entry_')) {
+                    DB::statement("DROP TABLE IF EXISTS `{$tableName}`");
+                }
+            }
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+            $this->info('✓ All StarDust tables dropped.');
+        }
+
         $this->info('1. Bootstrapping StarDust database engine schema...');
-        try{
+        try {
             $stardust->bootstrap();
-        $this->info('✓ StarDust schema bootstrapped successfully.');
-        } catch (\Throwable $e){
+            $this->info('✓ StarDust schema bootstrapped successfully.');
+        } catch (\Throwable $e) {
             $this->line('  (schema already bootstrapped, continuing)');
         }
-        
+
 
         $gudangFields = [
             new FieldDefinition('name',     'string', isFilterable: true),
@@ -36,9 +52,9 @@ class SetupInventoryModel extends Command
             new FieldDefinition('location', 'string', isFilterable: false),
             new FieldDefinition('manager',  'string', isFilterable: false),
         ];
-        
+
         $barangFields = [
-            new FieldDefinition('id_warehouse',    'int',      isFilterable: true),
+            new FieldDefinition('id_warehouse',    'int',      isFilterable: true), 
             new FieldDefinition('name',            'string', isFilterable: true),
             new FieldDefinition('sku',             'string', isFilterable: true),
             new FieldDefinition('category',        'string', isFilterable: true),
@@ -59,7 +75,7 @@ class SetupInventoryModel extends Command
         $intSlots = ['i_int_01', 'i_int_02', 'i_int_03', 'i_int_04', 'i_int_05'];
         $dtSlots  = ['i_dt_01', 'i_dt_02'];
 
-        $pdo = $stardust->pdo();    
+        $pdo = $stardust->pdo();
 
         (new PageProvisioner($pdo, $stardust->config()->clock, $stardust->logger()))
             ->provision(filterableSlots: array_merge($strSlots, $intSlots));

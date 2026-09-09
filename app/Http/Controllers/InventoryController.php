@@ -110,30 +110,48 @@ class InventoryController extends Controller
             modelId: $modelId,
             filter: $filter,
             pageSize: 20,
-            cursor: $cursor ? \StarDust\Read\Cursor::decode($cursor) : null
+            cursor: $cursor ? new \StarDust\Read\Cursor($cursor) : null
         );
 
         $entryPage = $this->stardust->read($entryQuery);
 
-         // Fetch all items IN THIS WAREHOUSE for stats & category filter options
-        $warehouseFilter = $warehouseId !== null ? LeafNode::local('id_warehouse', 'eq', $warehouseId) : null;
+        // Fetch uncapped stats & category filter options across all entries in active warehouse
+        $statsQuery = \Illuminate\Support\Facades\DB::table('entry_data')
+            ->where('tenant_id', $tenantId)
+            ->where('model_id', $modelId)
+            ->whereNull('deleted_at');
 
-        $allEntriesPage = $this->stardust->read(new EntryQuery(
-            tenantId: $tenantId,
-            modelId: $modelId,
-            filter: $warehouseFilter,
-            pageSize: 500
-        ));
+        if ($warehouseId !== null) {
+            $statsQuery->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(fields, '$.id_warehouse')) = ?", [(string) $warehouseId]);
+        }
 
-        $allItems = collect($allEntriesPage->rows)->map(function ($row) {
-            return (object) array_merge(['id' => $row->id], $row->fields);
-        });
+        $allRows = $statsQuery->get(['fields']);
 
-        $categories = $allItems
-            ->pluck('category')
-            ->filter()
-            ->unique()
-            ->values();
+        $totalItems = $allRows->count();
+        $totalStock = 0;
+        $totalValue = 0;
+        $lowStockCount = 0;
+        $categoryMap = [];
+
+        foreach ($allRows as $r) {
+            $f = json_decode($r->fields, true) ?? [];
+            $qty = (int) ($f['quantity'] ?? 0);
+            $price = (int) ($f['price'] ?? 0);
+            $minStock = (int) ($f['min_stock'] ?? 0);
+
+            if (!empty($f['category'])) {
+                $categoryMap[$f['category']] = true;
+            }
+
+            $totalStock += $qty;
+            $totalValue += ($qty * $price);
+            if ($qty <= $minStock) {
+                $lowStockCount++;
+            }
+        }
+
+        $categories = array_keys($categoryMap);
+        sort($categories);
 
         $items = collect($entryPage->rows)->map(function ($row) {
             return (object) array_merge(['id' => $row->id], $row->fields);
@@ -146,10 +164,10 @@ class InventoryController extends Controller
         }
 
         $stats = [
-            'total_items' => $allItems->count(),
-            'total_stock' => $allItems->sum(fn($i) => (int)($i->quantity ?? 0)),
-            'total_value' => $allItems->sum(fn($i) => ((int)($i->quantity ?? 0)) * ((int)($i->price ?? 0))),
-            'low_stock_count' => $allItems->filter(fn($i) => (int)($i->quantity ?? 0) <= (int)($i->min_stock ?? 0))->count(),
+            'total_items' => $totalItems,
+            'total_stock' => $totalStock,
+            'total_value' => $totalValue,
+            'low_stock_count' => $lowStockCount,
         ];
 
         return view('inventory.index', [
@@ -469,7 +487,7 @@ class InventoryController extends Controller
     }
 
     /**
-     * Soft-delete an item from StarDust engine.
+     * Delete an item from StarDust engine and physically remove from database table.
      */
     public function destroy(Request $request, int $id)
     {
@@ -481,6 +499,12 @@ class InventoryController extends Controller
             return redirect()->route('inventory.index', ['warehouse' => $warehouseId])
                 ->with('error', 'Gagal menghapus barang atau barang tidak ditemukan.');
         }
+
+        // Hard-delete physical row from entry_data to ensure database row count decreases
+        \Illuminate\Support\Facades\DB::table('entry_data')
+            ->where('tenant_id', $tenantId)
+            ->where('id', $id)
+            ->delete();
 
         return redirect()->route('inventory.index', ['warehouse' => $warehouseId])
             ->with('success', 'Barang berhasil dihapus dari StarDust Engine!');
