@@ -1,0 +1,213 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --auth-bg-main: #f8fafc;
+  --auth-card-bg: #ffffff;
+  --auth-border-color: #e2e8f0;
+  --auth-border-focus: #2563eb;
+  
+  --auth-text-main: #0f172a;
+  --auth-text-muted: #64748b;
+  --auth-text-dim: #94a3b8;
+  
+  --auth-primary: #2563eb;
+  --auth-primary-hover: #1d4ed8;
+  --auth-primary-light: #eff6ff;
+
+  --auth-radius-sm: 6px;
+  --auth-radius-md: 10px;
+  --auth-radius-lg: 16px;
+
+  --auth-shadow-lg: 0 20px 25px -5px rgba(15, 23, 42, 0.06), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+  --auth-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+
+  --auth-transition: all 0.15s ease-in-out;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body.login-page {
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--auth-bg-main);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.05) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(37, 99, 235, 0.05) 0px, transparent 50%);
+  color: var(--auth-text-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 1.5rem;
+  line-height: 1.5;
+}
+
+.login-card {
+  background: var(--auth-card-bg);
+  border: 1px solid var(--auth-border-color);
+  border-radius: var(--auth-radius-lg);
+  width: 100%;
+  max-width: 440px;
+  padding: 2.5rem 2.25rem;
+  box-shadow: var(--auth-shadow-lg);
+  transition: var(--auth-transition);
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.login-logo {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--auth-primary);
+  margin-bottom: 0.25rem;
+}
+
+.login-subtitle {
+  font-size: 0.875rem;
+  color: var(--auth-text-muted);
+  letter-spacing: 0.01em;
+}
+
+.login-badge {
+  display: inline-block;
+  background: var(--auth-primary-light);
+  color: var(--auth-primary);
+  border: 1px solid #bfdbfe;
+  padding: 0.3rem 0.85rem;
+  border-radius: 9999px;
+  font-size: 0.725rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.85rem;
+}
+
+.form-group {
+  margin-bottom: 1.25rem;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--auth-text-main);
+  margin-bottom: 0.4rem;
+}
+
+.form-input {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: var(--auth-text-main);
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--auth-radius-sm);
+  font-family: inherit;
+  font-size: 0.9rem;
+  outline: none;
+  transition: var(--auth-transition);
+}
+
+.form-input::placeholder {
+  color: var(--auth-text-dim);
+}
+
+.form-input:focus {
+  border-color: var(--auth-border-focus);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.form-checkbox-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.form-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--auth-text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.btn-login {
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--auth-primary);
+  color: #ffffff;
+  border: 1px solid var(--auth-primary);
+  border-radius: var(--auth-radius-sm);
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.925rem;
+  cursor: pointer;
+  transition: var(--auth-transition);
+  box-shadow: var(--auth-shadow-sm);
+}
+
+.btn-login:hover {
+  background: var(--auth-primary-hover);
+  border-color: var(--auth-primary-hover);
+}
+
+.demo-accounts {
+  margin-top: 1.75rem;
+  padding: 1.1rem;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: var(--auth-radius-sm);
+  font-size: 0.8rem;
+  color: var(--auth-text-muted);
+}
+
+.demo-title {
+  font-weight: 600;
+  color: var(--auth-text-main);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.75rem;
+}
+
+.demo-item {
+  margin-bottom: 0.35rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: #334155;
+}
+
+.demo-item:last-child {
+  margin-bottom: 0;
+}
+
+/* Alert Styling for White Theme */
+.alert {
+  padding: 0.75rem 1rem;
+  border-radius: var(--auth-radius-sm);
+  margin-bottom: 1.25rem;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.alert-success {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.alert-danger {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
