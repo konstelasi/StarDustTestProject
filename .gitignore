@@ -26,4 +26,7 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 .claude
+/inventory_stardust
+/database/*.sqlite
+/database/*.sqlite-journal
 
