@@ -14,6 +14,7 @@ class InventoryTest extends TestCase
         parent::setUp();
 
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        DB::table('users')->truncate();
         DB::table('entry_data')->truncate();
         DB::table('stardust_models')->truncate();
         DB::table('stardust_fields')->truncate();
@@ -21,8 +22,12 @@ class InventoryTest extends TestCase
         DB::table('stardust_import_jobs')->truncate();
         DB::table('stardust_sync_queue')->truncate();
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-        
+
         $this->artisan('inventory:setup', ['--seed' => true]);
+        $this->seed(\Database\Seeders\UserSeeder::class);
+
+        $admin = \App\Models\User::where('role', 'admin')->first();
+        $this->actingAs($admin);
     }
 
     public function test_inventory_index_page_loads_successfully(): void

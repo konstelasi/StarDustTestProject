@@ -23,17 +23,29 @@ class SetupInventoryModel extends Command
 
         if ($this->option('fresh')) {
             $this->warn('Wiping all StarDust database tables...');
-            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-            $tables = DB::select('SHOW TABLES');
-            $dbName = DB::getDatabaseName();
-            $columnName = "Tables_in_" . $dbName;
-            foreach ($tables as $table) {
-                $tableName = $table->$columnName ?? reset($table);
-                if (str_starts_with($tableName, 'stardust_') || str_starts_with($tableName, 'entry_')) {
-                    DB::statement("DROP TABLE IF EXISTS `{$tableName}`");
+            if (DB::getDriverName() === 'sqlite') {
+                DB::statement('PRAGMA foreign_keys = OFF;');
+                $tables = DB::select("SELECT name FROM sqlite_master WHERE type='table'");
+                foreach ($tables as $table) {
+                    $tableName = $table->name ?? '';
+                    if (str_starts_with($tableName, 'stardust_') || str_starts_with($tableName, 'entry_')) {
+                        DB::statement("DROP TABLE IF EXISTS `{$tableName}`");
+                    }
                 }
+                DB::statement('PRAGMA foreign_keys = ON;');
+            } else {
+                DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+                $tables = DB::select('SHOW TABLES');
+                $dbName = DB::getDatabaseName();
+                $columnName = "Tables_in_" . $dbName;
+                foreach ($tables as $table) {
+                    $tableName = $table->$columnName ?? reset($table);
+                    if (str_starts_with($tableName, 'stardust_') || str_starts_with($tableName, 'entry_')) {
+                        DB::statement("DROP TABLE IF EXISTS `{$tableName}`");
+                    }
+                }
+                DB::statement('SET FOREIGN_KEY_CHECKS=1;');
             }
-            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
             $this->info('✓ All StarDust tables dropped.');
         }
 
