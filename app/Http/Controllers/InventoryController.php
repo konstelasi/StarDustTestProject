@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use StarDust\StarDust;
 use StarDust\Read\EntryQuery;
 use StarDust\Filter\Ast\LeafNode;
@@ -56,8 +57,14 @@ class InventoryController extends Controller
 
         $warehouses = $this->loadWarehouses($tenantId, $gudangModelId);
 
-        $requestedId = $request->input('warehouse', session('active_warehouse'));
-        $warehouseId = $requestedId !== null ? (int) $requestedId : null;
+        $user = Auth::user();
+
+        if ($user && $user->isStaff() && $user->id_warehouse) {
+            $warehouseId = (int) $user->id_warehouse;
+        } else {
+            $requestedId = $request->input('warehouse', session('active_warehouse'));
+            $warehouseId = $requestedId !== null ? (int) $requestedId : null;
+        }
 
         $activeWarehouse = $warehouseId !== null ? $warehouses->firstWhere('id', $warehouseId) : null;
 

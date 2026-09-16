@@ -8,34 +8,36 @@
         <p class="page-subtitle">Sistem manajemen barang & stok gudang berbasis StarDust Engine</p>
     </div>
     <div style="display: flex; gap: 0.75rem;">
-        <details style="display: inline-block;">
-            <summary class="btn btn-secondary" id="btn-bulk-import" style="cursor: pointer; list-style: none;">
-                Bulk Write
-            </summary>
-            <form action="{{ route('inventory.bulk-import') }}" method="POST" class="panel" style="position: absolute; z-index: 20; margin-top: 0.5rem; padding: 1rem; min-width: 260px;">
-                @csrf
-                <div style="margin-bottom: 0.75rem;">
-                    <label style="display:block; font-size:0.75rem; color: var(--text-muted); margin-bottom:0.25rem;">Jumlah Barang</label>
-                    <input type="number" name="count" class="form-control" value="100" min="1" max="5000" style="width:100%;" required>
-                </div>
-                <div style="margin-bottom: 0.75rem;">
-                    <label style="display:block; font-size:0.75rem; color: var(--text-muted); margin-bottom:0.25rem;">Ukuran Chunk</label>
-                    <input type="number" name="chunk_size" class="form-control" value="500" min="1" max="1000" style="width:100%;">
-                </div>
-                <div style="margin-bottom: 0.75rem;">
-                    <label style="display:block; font-size:0.75rem; color: var(--text-muted); margin-bottom:0.25rem;">Delay Antar-Chunk (ms)</label>
-                    <input type="number" name="delay_ms" class="form-control" value="0" min="0" max="5000" style="width:100%;">
-                </div>
-                <div style="margin-bottom: 0.75rem;">
-                    <label style="display:block; font-size:0.75rem; color: var(--text-muted); margin-bottom:0.25rem;">Mode</label>
-                    <select name="mode" class="form-control" style="width:100%;">
-                        <option value="sync">Sync (langsung, maks 1000)</option>
-                        <option value="async">Async (antrian, diproses Reconciler)</option>
-                    </select>
-                </div>
-                <button type="submit" class="btn btn-primary" style="width:100%;">Jalankan</button>
-            </form>
-        </details>
+        @if (Auth::user()?->isAdmin())
+            <details style="display: inline-block;">
+                <summary class="btn btn-secondary" id="btn-bulk-import" style="cursor: pointer; list-style: none;">
+                    Bulk Write
+                </summary>
+                <form action="{{ route('inventory.bulk-import') }}" method="POST" class="panel" style="position: absolute; z-index: 20; margin-top: 0.5rem; padding: 1rem; min-width: 260px;">
+                    @csrf
+                    <div style="margin-bottom: 0.75rem;">
+                        <label style="display:block; font-size:0.75rem; color: var(--text-muted); margin-bottom:0.25rem;">Jumlah Barang</label>
+                        <input type="number" name="count" class="form-control" value="100" min="1" max="5000" style="width:100%;" required>
+                    </div>
+                    <div style="margin-bottom: 0.75rem;">
+                        <label style="display:block; font-size:0.75rem; color: var(--text-muted); margin-bottom:0.25rem;">Ukuran Chunk</label>
+                        <input type="number" name="chunk_size" class="form-control" value="500" min="1" max="1000" style="width:100%;">
+                    </div>
+                    <div style="margin-bottom: 0.75rem;">
+                        <label style="display:block; font-size:0.75rem; color: var(--text-muted); margin-bottom:0.25rem;">Delay Antar-Chunk (ms)</label>
+                        <input type="number" name="delay_ms" class="form-control" value="0" min="0" max="5000" style="width:100%;">
+                    </div>
+                    <div style="margin-bottom: 0.75rem;">
+                        <label style="display:block; font-size:0.75rem; color: var(--text-muted); margin-bottom:0.25rem;">Mode</label>
+                        <select name="mode" class="form-control" style="width:100%;">
+                            <option value="sync">Sync (langsung, maks 1000)</option>
+                            <option value="async">Async (antrian, diproses Reconciler)</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width:100%;">Jalankan</button>
+                </form>
+            </details>
+        @endif
         <a href="{{ route('inventory.create') }}" class="btn btn-primary" id="btn-add-item">
             Registrasi Barang Baru
         </a>
@@ -185,13 +187,15 @@
                                 <a href="{{ route('inventory.edit', $item->id) }}" class="btn btn-secondary btn-sm" id="btn-edit-{{ $item->id }}">
                                     Edit
                                 </a>
-                                <form action="{{ route('inventory.destroy', $item->id) }}" method="POST" style="display: inline;" onsubmit="return confirm('Hapus barang ini dari StarDust Engine?');" id="form-delete-{{ $item->id }}">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-danger btn-sm" title="Hapus">
-                                        Hapus
-                                    </button>
-                                </form>
+                                @if (Auth::user()?->isAdmin())
+                                    <form action="{{ route('inventory.destroy', $item->id) }}" method="POST" style="display: inline;" onsubmit="return confirm('Hapus barang ini dari StarDust Engine?');" id="form-delete-{{ $item->id }}">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-danger btn-sm" title="Hapus">
+                                            Hapus
+                                        </button>
+                                    </form>
+                                @endif
                             </div>
                         </td>
                     </tr>
