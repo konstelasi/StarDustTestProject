@@ -8,6 +8,11 @@
 </head>
 <body>
 
+    @php
+        $currentAppMode = session('app_mode', env('APP_MODE', 'normal'));
+        $authUser = Auth::user();
+    @endphp
+
     <!-- Sidebar Navigation -->
     <aside class="app-sidebar">
         <div>
@@ -25,28 +30,60 @@
                 </a>
             </nav>
         </div>
+
+        @if ($authUser)
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="user-name">{{ $authUser->name }}</div>
+                    @if ($authUser->isAdmin())
+                        <span class="role-badge role-badge-admin">Admin System</span>
+                    @else
+                        <span class="role-badge role-badge-staff">Staff Gudang</span>
+                    @endif
+                </div>
+
+                <form action="{{ route('logout') }}" method="POST" id="logout-form">
+                    @csrf
+                    <button type="submit" class="btn btn-secondary btn-sm" style="width: 100%; text-align: center;">
+                        Keluar (Logout)
+                    </button>
+                </form>
+            </div>
+        @endif
     </aside>
 
     <!-- Main Content Area -->
     <main class="app-container">
 
-        <!-- Top Warehouse Context Bar -->
+        <!-- Top Context & Mode Bar -->
         <div class="warehouse-context-bar" id="warehouse-context-bar">
             <div class="warehouse-info">
-                <div class="warehouse-name">{{ $navCurrentWarehouse->name ?? 'Gudang' }}</div>
-                <div class="warehouse-meta">Kode: {{ $navCurrentWarehouse->code ?? '-' }} • Manajer: {{ $navCurrentWarehouse->manager ?? '-' }} • {{ $navCurrentWarehouse->location ?? '' }}</div>
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div class="warehouse-name">{{ $navCurrentWarehouse->name ?? 'Gudang' }}</div>
+                </div>
+                <div class="warehouse-meta">
+                    Kode: {{ $navCurrentWarehouse->code ?? '-' }} • Manajer: {{ $navCurrentWarehouse->manager ?? '-' }} • {{ $navCurrentWarehouse->location ?? '' }}
+                </div>
             </div>
 
-            <form action="{{ route('inventory.index') }}" method="GET" class="warehouse-selector-form" id="warehouse-switch-form">
-                <label for="warehouse-select" style="font-size: 0.85rem; color: var(--text-muted);">Pilih Gudang:</label>
-                <select name="warehouse" id="warehouse-select" class="form-control" onchange="this.form.submit()" style="width: 200px;">
-                    @foreach ($navWarehouses as $w)
-                        <option value="{{ $w->id }}" {{ ($navCurrentWarehouse->id ?? null) == $w->id ? 'selected' : '' }}>
-                            {{ $w->name }}
-                        </option>
-                    @endforeach
-                </select>
-            </form>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                @if ($authUser && $authUser->isAdmin())
+                    <form action="{{ route('inventory.index') }}" method="GET" class="warehouse-selector-form" id="warehouse-switch-form">
+                        <label for="warehouse-select" style="font-size: 0.85rem; color: var(--text-muted);">Pilih Gudang:</label>
+                        <select name="warehouse" id="warehouse-select" class="form-control" onchange="this.form.submit()" style="width: 200px;">
+                            @foreach ($navWarehouses as $w)
+                                <option value="{{ $w->id }}" {{ ($navCurrentWarehouse->id ?? null) == $w->id ? 'selected' : '' }}>
+                                    {{ $w->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </form>
+                @else
+                    <span style="font-size: 0.825rem; color: var(--text-muted); background: #f1f5f9; padding: 4px 10px; border-radius: 4px;">
+                        🔒 Gudang Tugas: {{ $navCurrentWarehouse->name ?? '-' }}
+                    </span>
+                @endif
+            </div>
         </div>
 
         @if (session('success'))
