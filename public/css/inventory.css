@@ -298,6 +298,37 @@ body {
   flex-wrap: wrap;
 }
 
+.search-input-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.search-input-wrapper .form-control {
+  padding-left: 2.3rem;
+}
+
+.search-icon-btn {
+  position: absolute;
+  left: 0.65rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 4px;
+  transition: var(--transition);
+}
+
+.search-icon-btn:hover {
+  color: var(--primary);
+}
+
 .form-control {
   background: var(--bg-input);
   border: 1px solid #cbd5e1;
@@ -333,6 +364,35 @@ body {
   padding: 0.75rem 1rem;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
+}
+
+.sort-header-link {
+  color: var(--text-muted);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
+  transition: var(--transition);
+  cursor: pointer;
+}
+
+.sort-header-link:hover {
+  color: var(--primary);
+}
+
+.sort-header-active {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.sort-icon {
+  font-size: 0.75rem;
+  opacity: 0.5;
+}
+
+.sort-header-active .sort-icon {
+  opacity: 1;
 }
 
 .custom-table td {

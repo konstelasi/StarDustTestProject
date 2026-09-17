@@ -140,12 +140,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/damarbob/StarDust.git",
-                "reference": "b951f7bca6dce4701870af03469ea1fa966ce178"
+                "reference": "56188ba49204d9655f3a129077cb69e0c08d9d61"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/damarbob/StarDust/zipball/b951f7bca6dce4701870af03469ea1fa966ce178",
-                "reference": "b951f7bca6dce4701870af03469ea1fa966ce178",
+                "url": "https://api.github.com/repos/damarbob/StarDust/zipball/56188ba49204d9655f3a129077cb69e0c08d9d61",
+                "reference": "56188ba49204d9655f3a129077cb69e0c08d9d61",
                 "shasum": ""
             },
             "require": {
@@ -193,7 +193,7 @@
                 "issues": "https://github.com/damarbob/StarDust/issues",
                 "source": "https://github.com/damarbob/StarDust/tree/main"
             },
-            "time": "2026-09-02T08:38:43+00:00"
+            "time": "2026-09-16T15:26:32+00:00"
         },
         {
             "name": "dflydev/dot-access-data",

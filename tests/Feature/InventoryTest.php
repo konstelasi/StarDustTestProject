@@ -179,4 +179,22 @@ class InventoryTest extends TestCase
         $deletedEntry = $stardust->get(1, $entryId);
         $this->assertNull($deletedEntry);
     }
+
+    public function test_can_sort_inventory_by_filterable_fields(): void
+    {
+        $responseAsc = $this->get('/inventory?warehouse=1&sort=name&dir=asc');
+        $responseAsc->assertStatus(200);
+        $responseAsc->assertSee('sort-header-active');
+
+        $responseDesc = $this->get('/inventory?warehouse=1&sort=price&dir=desc');
+        $responseDesc->assertStatus(200);
+        $responseDesc->assertSee('sort-header-active');
+    }
+
+    public function test_can_customize_per_page_items_limit(): void
+    {
+        $response = $this->get('/inventory?warehouse=1&per_page=50');
+        $response->assertStatus(200);
+        $response->assertSee('50 / hal');
+    }
 }

@@ -32,7 +32,7 @@ class AuthAndModesTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('STARDUST');
-        $response->assertSee('White Mode Logbook Guard');
+        $response->assertSee('Inventory Management System');
     }
 
     public function test_admin_user_can_login_and_access_inventory(): void

@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use StarDust\StarDust;
 use StarDust\Read\EntryQuery;
+use StarDust\Read\SortSpec;
+use StarDust\Read\SortDirection;
 use StarDust\Filter\Ast\LeafNode;
 use StarDust\Filter\Ast\AndNode;
 use StarDust\Write\EntryPayload;
@@ -90,6 +92,26 @@ class InventoryController extends Controller
         $lowStock = $request->boolean('low_stock');
         $cursor = $request->input('cursor');
 
+        $perPage = (int) $request->input('per_page', 20);
+        if ($perPage < 1) {
+            $perPage = 20;
+        } elseif ($perPage > 1000) {
+            $perPage = 1000;
+        }
+
+        $sortBy = $request->input('sort');
+        $sortDirInput = strtolower((string) $request->input('dir', 'asc'));
+        $sortDirection = $sortDirInput === 'desc' ? SortDirection::Desc : SortDirection::Asc;
+
+        $filterableFields = ['name', 'sku', 'category', 'quantity', 'price', 'location', 'supplier', 'min_stock'];
+
+        $sortSpec = null;
+        if ($sortBy === 'id') {
+            $sortSpec = SortSpec::byId($sortDirection);
+        } elseif (in_array($sortBy, $filterableFields, true)) {
+            $sortSpec = SortSpec::byField($sortBy, $sortDirection);
+        }
+
         $filterNodes = [];
 
         if ($warehouseId !== null) {
@@ -116,8 +138,9 @@ class InventoryController extends Controller
             tenantId: $tenantId,
             modelId: $modelId,
             filter: $filter,
-            pageSize: 20,
-            cursor: $cursor ? new \StarDust\Read\Cursor($cursor) : null
+            pageSize: $perPage,
+            cursor: $cursor ? new \StarDust\Read\Cursor($cursor) : null,
+            sort: $sortSpec
         );
 
         $entryPage = $this->stardust->read($entryQuery);
@@ -185,6 +208,9 @@ class InventoryController extends Controller
             'currentSearch' => $search,
             'currentCategory' => $category,
             'currentLowStock' => $lowStock,
+            'currentSort' => $sortBy,
+            'currentDir' => $sortBy ? ($sortDirInput === 'desc' ? 'desc' : 'asc') : null,
+            'currentPerPage' => $perPage,
             'activeWarehouse' => $activeWarehouse,
             'warehouses' => $warehouses,
             'warehouseId' => $warehouseId,

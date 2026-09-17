@@ -71,14 +71,29 @@
     <!-- Filter Bar -->
     <form action="{{ route('inventory.index') }}" method="GET" class="filter-bar" id="inventory-filter-form">
         <input type="hidden" name="warehouse" value="{{ $warehouseId }}">
+        @if($currentSort)
+            <input type="hidden" name="sort" value="{{ $currentSort }}">
+        @endif
+        @if($currentDir)
+            <input type="hidden" name="dir" value="{{ $currentDir }}">
+        @endif
+
         <div class="filter-group">
-            <input type="text" 
-                   name="search" 
-                   class="form-control" 
-                   placeholder="Cari nama barang..." 
-                   value="{{ $currentSearch }}"
-                   id="search-input"
-                   style="width: 260px;">
+            <div class="search-input-wrapper">
+                <button type="submit" class="search-icon-btn" id="btn-search-submit" title="Cari">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </button>
+                <input type="text" 
+                       name="search" 
+                       class="form-control" 
+                       placeholder="Cari nama barang..." 
+                       value="{{ $currentSearch }}"
+                       id="search-input"
+                       style="width: 260px;">
+            </div>
 
             <select name="category" class="form-control" id="category-select" onchange="this.form.submit()">
                 <option value="">Semua Kategori</option>
@@ -101,10 +116,19 @@
         </div>
 
         <div class="filter-group">
-            <button type="submit" class="btn btn-secondary" id="btn-search-submit">
-                Filter
-            </button>
-            @if ($currentSearch || $currentCategory || $currentLowStock)
+            <div style="display: flex; align-items: center; gap: 0.35rem;">
+                <label for="per-page-select" style="font-size: 0.825rem; color: var(--text-muted);">Tampilkan:</label>
+                <select name="per_page" class="form-control" id="per-page-select" onchange="this.form.submit()" style="width: auto;">
+                    <option value="10" {{ $currentPerPage == 10 ? 'selected' : '' }}>10 / hal</option>
+                    <option value="20" {{ $currentPerPage == 20 ? 'selected' : '' }}>20 / hal</option>
+                    <option value="50" {{ $currentPerPage == 50 ? 'selected' : '' }}>50 / hal</option>
+                    <option value="100" {{ $currentPerPage == 100 ? 'selected' : '' }}>100 / hal</option>
+                    <option value="200" {{ $currentPerPage == 200 ? 'selected' : '' }}>200 / hal</option>
+                    <option value="500" {{ $currentPerPage == 500 ? 'selected' : '' }}>500 / hal</option>
+                </select>
+            </div>
+
+            @if ($currentSearch || $currentCategory || $currentLowStock || $currentSort || $currentPerPage != 20)
                 <a href="{{ route('inventory.index', ['warehouse' => $warehouseId]) }}" class="btn btn-secondary" id="btn-reset-filter">Reset</a>
             @endif
         </div>
@@ -115,14 +139,59 @@
         <table class="custom-table" id="inventory-table">
             <thead>
                 <tr>
-                    <th>SKU / Entry</th>
-                    <th>Nama Barang</th>
-                    <th>Kategori</th>
-                    <th>Stok Gudang</th>
+                    @php
+                        $makeSortUrl = function($field) use ($currentSort, $currentDir, $warehouseId) {
+                            $nextDir = ($currentSort === $field && $currentDir === 'asc') ? 'desc' : 'asc';
+                            return route('inventory.index', array_merge(request()->except(['cursor']), [
+                                'warehouse' => $warehouseId,
+                                'sort' => $field,
+                                'dir' => $nextDir,
+                            ]));
+                        };
+                    @endphp
+                    <th>
+                        <a href="{{ $makeSortUrl('sku') }}" class="sort-header-link {{ $currentSort === 'sku' ? 'sort-header-active' : '' }}" title="Sort SKU">
+                            SKU / Entry
+                            <span class="sort-icon">{{ $currentSort === 'sku' ? ($currentDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+                        </a>
+                    </th>
+                    <th>
+                        <a href="{{ $makeSortUrl('name') }}" class="sort-header-link {{ $currentSort === 'name' ? 'sort-header-active' : '' }}" title="Sort Nama Barang">
+                            Nama Barang
+                            <span class="sort-icon">{{ $currentSort === 'name' ? ($currentDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+                        </a>
+                    </th>
+                    <th>
+                        <a href="{{ $makeSortUrl('category') }}" class="sort-header-link {{ $currentSort === 'category' ? 'sort-header-active' : '' }}" title="Sort Kategori">
+                            Kategori
+                            <span class="sort-icon">{{ $currentSort === 'category' ? ($currentDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+                        </a>
+                    </th>
+                    <th>
+                        <a href="{{ $makeSortUrl('quantity') }}" class="sort-header-link {{ $currentSort === 'quantity' ? 'sort-header-active' : '' }}" title="Sort Stok">
+                            Stok Gudang
+                            <span class="sort-icon">{{ $currentSort === 'quantity' ? ($currentDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+                        </a>
+                    </th>
                     <th>Penyesuaian</th>
-                    <th>Harga Satuan</th>
-                    <th>Lokasi Rak</th>
-                    <th>Supplier</th>
+                    <th>
+                        <a href="{{ $makeSortUrl('price') }}" class="sort-header-link {{ $currentSort === 'price' ? 'sort-header-active' : '' }}" title="Sort Harga">
+                            Harga Satuan
+                            <span class="sort-icon">{{ $currentSort === 'price' ? ($currentDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+                        </a>
+                    </th>
+                    <th>
+                        <a href="{{ $makeSortUrl('location') }}" class="sort-header-link {{ $currentSort === 'location' ? 'sort-header-active' : '' }}" title="Sort Lokasi Rak">
+                            Lokasi Rak
+                            <span class="sort-icon">{{ $currentSort === 'location' ? ($currentDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+                        </a>
+                    </th>
+                    <th>
+                        <a href="{{ $makeSortUrl('supplier') }}" class="sort-header-link {{ $currentSort === 'supplier' ? 'sort-header-active' : '' }}" title="Sort Supplier">
+                            Supplier
+                            <span class="sort-icon">{{ $currentSort === 'supplier' ? ($currentDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+                        </a>
+                    </th>
                     <th style="text-align: right;">Aksi</th>
                 </tr>
             </thead>
