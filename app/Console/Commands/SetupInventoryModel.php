@@ -84,13 +84,14 @@ class SetupInventoryModel extends Command
         ];
 
         $strSlots = ['i_str_01', 'i_str_02', 'i_str_03', 'i_str_04', 'i_str_05', 'i_str_06', 'i_str_07', 'i_str_08'];
-        $intSlots = ['i_int_01', 'i_int_02', 'i_int_03', 'i_int_04', 'i_int_05'];
+        $intSlots = ['i_int_01', 'i_int_02', 'i_int_03', 'i_int_04'];
+        $numSlots = ['i_num_01', 'i_num_02'];
         $dtSlots  = ['i_dt_01', 'i_dt_02'];
 
         $pdo = $stardust->pdo();
 
         (new PageProvisioner($pdo, $stardust->config()->clock, $stardust->logger()))
-            ->provision(filterableSlots: array_merge($strSlots, $intSlots));
+            ->provision(filterableSlots: array_merge($strSlots, $intSlots, $numSlots, $dtSlots));
 
         $reserver = new SlotReserver($pdo, $stardust->config()->clock, $stardust->logger());
 

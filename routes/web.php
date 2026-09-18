@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\AuthController;
 
 // --- Guest Authentication Routes ---
@@ -23,8 +24,11 @@ Route::middleware('auth')->group(function () {
         ->middleware('role:admin')
         ->name('app-mode.toggle');
 
-    // Admin Only Inventory Actions
+    // Admin Only Actions (Warehouse Management & Inventory Admin Actions)
     Route::middleware('role:admin')->group(function () {
+        Route::get('warehouses/create', [WarehouseController::class, 'create'])->name('warehouses.create');
+        Route::post('warehouses', [WarehouseController::class, 'store'])->name('warehouses.store');
+
         Route::post('inventory/bulk-import', [InventoryController::class, 'bulkImport'])->name('inventory.bulk-import');
         Route::delete('inventory/{inventory}', [InventoryController::class, 'destroy'])->name('inventory.destroy');
     });

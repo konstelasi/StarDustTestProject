@@ -28,6 +28,11 @@
                 <a href="{{ route('inventory.create', ['warehouse' => session('active_warehouse', $navCurrentWarehouse->id ?? null)]) }}" class="nav-link {{ request()->routeIs('inventory.create') ? 'active' : '' }}" id="nav-create-link">
                     Registrasi Barang
                 </a>
+                @if ($authUser && $authUser->isAdmin())
+                    <a href="{{ route('warehouses.create') }}" class="nav-link {{ request()->routeIs('warehouses.create') ? 'active' : '' }}" id="nav-create-warehouse-link">
+                        + Tambah Gudang
+                    </a>
+                @endif
             </nav>
         </div>
 
@@ -78,6 +83,9 @@
                             @endforeach
                         </select>
                     </form>
+                    <a href="{{ route('warehouses.create') }}" class="btn btn-secondary btn-sm" id="btn-add-warehouse-top" title="Tambah Gudang Baru">
+                        + Gudang
+                    </a>
                 @else
                     <span style="font-size: 0.825rem; color: var(--text-muted); background: #f1f5f9; padding: 4px 10px; border-radius: 4px;">
                         🔒 Gudang Tugas: {{ $navCurrentWarehouse->name ?? '-' }}
