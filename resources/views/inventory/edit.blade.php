@@ -86,6 +86,18 @@
                 <input type="number" name="min_stock" id="min_stock" class="form-control" value="{{ old('min_stock', $item->min_stock ?? 5) }}" min="0" required style="width: 100%;">
                 @error('min_stock') <span style="color: #f87171; font-size: 0.8rem;">{{ $message }}</span> @enderror
             </div>
+
+            <div>
+                <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem;" for="weight_kg">Berat Barang (kg) [Num/Double]</label>
+                <input type="number" step="0.01" name="weight_kg" id="weight_kg" class="form-control" value="{{ old('weight_kg', $item->weight_kg ?? '') }}" placeholder="Opsional: 2.50" min="0" style="width: 100%;">
+                @error('weight_kg') <span style="color: #f87171; font-size: 0.8rem;">{{ $message }}</span> @enderror
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem;" for="volume_cbm">Volume Dimensi (m³/CBM) [Num/Double]</label>
+                <input type="number" step="0.001" name="volume_cbm" id="volume_cbm" class="form-control" value="{{ old('volume_cbm', $item->volume_cbm ?? '') }}" placeholder="Opsional: 0.025" min="0" style="width: 100%;">
+                @error('volume_cbm') <span style="color: #f87171; font-size: 0.8rem;">{{ $message }}</span> @enderror
+            </div>
         </div>
 
         <div style="font-size: 1rem; font-weight: 600; color: var(--text-main); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);">
@@ -99,7 +111,12 @@
             </div>
 
             <div>
-                <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem;" for="expiry_date">Tanggal Kadaluarsa</label>
+                <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem;" for="received_at">Waktu Penerimaan Inbound [DateTime]</label>
+                <input type="datetime-local" name="received_at" id="received_at" class="form-control" value="{{ old('received_at', isset($item->received_at) ? date('Y-m-d\TH:i', strtotime($item->received_at)) : '') }}" style="width: 100%;">
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem;" for="expiry_date">Tanggal Kadaluarsa [DateTime]</label>
                 <input type="date" name="expiry_date" id="expiry_date" class="form-control" value="{{ old('expiry_date', isset($item->expiry_date) ? date('Y-m-d', strtotime($item->expiry_date)) : '') }}" style="width: 100%;">
             </div>
 

@@ -2,10 +2,13 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use App\Models\User;
+use Database\Seeders\UserSeeder;
+use Illuminate\Support\Facades\DB;
+use StarDust\Read\EntryQuery;
 use StarDust\StarDust;
 use StarDust\Write\EntryPayload;
-use Illuminate\Support\Facades\DB;
+use Tests\TestCase;
 
 class InventoryTest extends TestCase
 {
@@ -24,9 +27,9 @@ class InventoryTest extends TestCase
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
         $this->artisan('inventory:setup', ['--seed' => true]);
-        $this->seed(\Database\Seeders\UserSeeder::class);
+        $this->seed(UserSeeder::class);
 
-        $admin = \App\Models\User::where('role', 'admin')->first();
+        $admin = User::where('role', 'admin')->first();
         $this->actingAs($admin);
     }
 
@@ -108,7 +111,7 @@ class InventoryTest extends TestCase
         $models = $stardust->listModels(1);
         $barangModel = collect($models)->firstWhere('name', 'barang');
 
-        $entries = $stardust->read(new \StarDust\Read\EntryQuery(
+        $entries = $stardust->read(new EntryQuery(
             tenantId: 1,
             modelId: $barangModel->modelId,
             pageSize: 1

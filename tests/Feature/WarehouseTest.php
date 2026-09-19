@@ -2,9 +2,12 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
 use App\Models\User;
+use Database\Seeders\UserSeeder;
 use Illuminate\Support\Facades\DB;
+use StarDust\Read\EntryQuery;
+use StarDust\StarDust;
+use Tests\TestCase;
 
 class WarehouseTest extends TestCase
 {
@@ -23,7 +26,7 @@ class WarehouseTest extends TestCase
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
         $this->artisan('inventory:setup', ['--seed' => true]);
-        $this->seed(\Database\Seeders\UserSeeder::class);
+        $this->seed(UserSeeder::class);
     }
 
     public function test_admin_can_access_create_warehouse_page(): void
@@ -52,11 +55,11 @@ class WarehouseTest extends TestCase
         $response->assertSessionHas('success');
 
         // Check StarDust entry creation
-        $stardust = app(\StarDust\StarDust::class);
+        $stardust = app(StarDust::class);
         $models = $stardust->listModels(1);
         $gudangModel = collect($models)->firstWhere('name', 'gudang');
 
-        $page = $stardust->read(new \StarDust\Read\EntryQuery(
+        $page = $stardust->read(new EntryQuery(
             tenantId: 1,
             modelId: $gudangModel->modelId,
             pageSize: 200,

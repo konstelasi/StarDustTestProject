@@ -30,7 +30,7 @@ class WarehouseController extends Controller
         $models = $this->stardust->listModels($tenantId);
         $gudangModel = collect($models)->firstWhere('name', config('stardust.warehouse_model_name', 'gudang'));
 
-        if (!$gudangModel) {
+        if (! $gudangModel) {
             return redirect()->back()->with('error', 'Model gudang belum terregistrasi di StarDust.')->withInput();
         }
 

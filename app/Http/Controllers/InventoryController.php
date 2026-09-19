@@ -2,24 +2,25 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use StarDust\StarDust;
-use StarDust\Read\EntryQuery;
-use StarDust\Read\SortSpec;
-use StarDust\Read\SortDirection;
-use StarDust\Filter\Ast\LeafNode;
-use StarDust\Filter\Ast\AndNode;
-use StarDust\Write\EntryPayload;
-use StarDust\Write\BulkIngestOptions;
 use App\Support\SkuGenerator;
 use Faker\Factory as FakerFactory;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use StarDust\Exception\PayloadTooLargeException;
+use StarDust\Filter\Ast\AndNode;
+use StarDust\Filter\Ast\LeafNode;
+use StarDust\Read\Cursor;
+use StarDust\Read\EntryQuery;
+use StarDust\Read\SortDirection;
+use StarDust\Read\SortSpec;
+use StarDust\StarDust;
+use StarDust\Write\BulkIngestOptions;
+use StarDust\Write\EntryPayload;
 
 class InventoryController extends Controller
 {
-    public function __construct(private readonly StarDust $stardust)
-    {
-    }
+    public function __construct(private readonly StarDust $stardust) {}
 
     private function tenantId(): int
     {
@@ -31,7 +32,7 @@ class InventoryController extends Controller
         $models = $this->stardust->listModels($tenantId);
         $model = collect($models)->firstWhere('name', $modelName);
 
-        if (!$model) {
+        if (! $model) {
             throw new \RuntimeException("Model StarDust '{$modelName}' tidak ditemukan untuk tenant {$tenantId}. Silakan jalankan `php artisan inventory:setup --seed` terlebih dahulu.");
         }
 
@@ -70,7 +71,7 @@ class InventoryController extends Controller
 
         $activeWarehouse = $warehouseId !== null ? $warehouses->firstWhere('id', $warehouseId) : null;
 
-        if (!$activeWarehouse) {
+        if (! $activeWarehouse) {
             $activeWarehouse = $warehouses->first();
             $warehouseId = $activeWarehouse->id ?? null;
         }
@@ -103,7 +104,7 @@ class InventoryController extends Controller
         $sortDirInput = strtolower((string) $request->input('dir', 'asc'));
         $sortDirection = $sortDirInput === 'desc' ? SortDirection::Desc : SortDirection::Asc;
 
-        $filterableFields = ['name', 'sku', 'category', 'quantity', 'price', 'location', 'supplier', 'min_stock'];
+        $filterableFields = ['name', 'sku', 'category', 'quantity', 'price', 'location', 'supplier', 'min_stock', 'weight_kg', 'volume_cbm', 'received_at', 'expiry_date', 'id_warehouse'];
 
         $sortSpec = null;
         if ($sortBy === 'id') {
@@ -139,14 +140,14 @@ class InventoryController extends Controller
             modelId: $modelId,
             filter: $filter,
             pageSize: $perPage,
-            cursor: $cursor ? new \StarDust\Read\Cursor($cursor) : null,
+            cursor: $cursor ? new Cursor($cursor) : null,
             sort: $sortSpec
         );
 
         $entryPage = $this->stardust->read($entryQuery);
 
         // Fetch uncapped stats & category filter options across all entries in active warehouse
-        $statsQuery = \Illuminate\Support\Facades\DB::table('entry_data')
+        $statsQuery = DB::table('entry_data')
             ->where('tenant_id', $tenantId)
             ->where('model_id', $modelId)
             ->whereNull('deleted_at');
@@ -169,7 +170,7 @@ class InventoryController extends Controller
             $price = (int) ($f['price'] ?? 0);
             $minStock = (int) ($f['min_stock'] ?? 0);
 
-            if (!empty($f['category'])) {
+            if (! empty($f['category'])) {
                 $categoryMap[$f['category']] = true;
             }
 
@@ -189,7 +190,7 @@ class InventoryController extends Controller
 
         if ($lowStock) {
             $items = $items->filter(function ($item) {
-                return isset($item->quantity, $item->min_stock) && (int)$item->quantity <= (int)$item->min_stock;
+                return isset($item->quantity, $item->min_stock) && (int) $item->quantity <= (int) $item->min_stock;
             });
         }
 
@@ -223,6 +224,7 @@ class InventoryController extends Controller
     public function create(Request $request)
     {
         [$tenantId, $modelId, $warehouseId, $activeWarehouse, $warehouses] = $this->resolveContext($request);
+
         return view('inventory.create', compact('activeWarehouse', 'warehouses', 'warehouseId'));
     }
 
@@ -244,10 +246,13 @@ class InventoryController extends Controller
             'supplier' => 'required|string|max:255',
             'location' => 'required|string|max:100',
             'min_stock' => 'required|integer|min:0',
+            'weight_kg' => 'nullable|numeric|min:0',
+            'volume_cbm' => 'nullable|numeric|min:0',
             'description' => 'nullable|string',
 
             // Dynamic schemaless custom attributes
             'batch_number' => 'nullable|string|max:100',
+            'received_at' => 'nullable|date',
             'expiry_date' => 'nullable|date',
             'warranty_months' => 'nullable|integer|min:0',
             'serial_number' => 'nullable|string|max:100',
@@ -260,16 +265,28 @@ class InventoryController extends Controller
         $validated['price'] = (int) $validated['price'];
         $validated['min_stock'] = (int) $validated['min_stock'];
 
+        if (isset($validated['weight_kg']) && $validated['weight_kg'] !== '') {
+            $validated['weight_kg'] = (float) $validated['weight_kg'];
+        }
+
+        if (isset($validated['volume_cbm']) && $validated['volume_cbm'] !== '') {
+            $validated['volume_cbm'] = (float) $validated['volume_cbm'];
+        }
+
         if (isset($validated['warranty_months']) && $validated['warranty_months'] !== '') {
             $validated['warranty_months'] = (int) $validated['warranty_months'];
         }
 
-        if (!empty($validated['expiry_date'])) {
+        if (! empty($validated['received_at'])) {
+            $validated['received_at'] = date('Y-m-d H:i:s', strtotime($validated['received_at']));
+        }
+
+        if (! empty($validated['expiry_date'])) {
             $validated['expiry_date'] = date('Y-m-d H:i:s', strtotime($validated['expiry_date']));
         }
 
         // Clean out nulls for extra dynamic fields
-        $fields = array_filter($validated, fn($val) => $val !== null && $val !== '');
+        $fields = array_filter($validated, fn ($val) => $val !== null && $val !== '');
         $fields['id_warehouse'] = $idWarehouse;
 
         $payload = new EntryPayload(
@@ -293,7 +310,7 @@ class InventoryController extends Controller
 
         $entry = $this->stardust->get($tenantId, $id);
 
-        if (!$entry) {
+        if (! $entry) {
             abort(404, 'Barang tidak ditemukan di StarDust engine.');
         }
 
@@ -311,7 +328,7 @@ class InventoryController extends Controller
 
         $entry = $this->stardust->get($tenantId, $id);
 
-        if (!$entry) {
+        if (! $entry) {
             abort(404, 'Barang tidak ditemukan di StarDust engine.');
         }
 
@@ -338,10 +355,13 @@ class InventoryController extends Controller
             'supplier' => 'required|string|max:255',
             'location' => 'required|string|max:100',
             'min_stock' => 'required|integer|min:0',
+            'weight_kg' => 'nullable|numeric|min:0',
+            'volume_cbm' => 'nullable|numeric|min:0',
             'description' => 'nullable|string',
 
             // Dynamic schemaless custom attributes
             'batch_number' => 'nullable|string|max:100',
+            'received_at' => 'nullable|date',
             'expiry_date' => 'nullable|date',
             'warranty_months' => 'nullable|integer|min:0',
             'serial_number' => 'nullable|string|max:100',
@@ -354,14 +374,27 @@ class InventoryController extends Controller
         $validated['price'] = (int) $validated['price'];
         $validated['min_stock'] = (int) $validated['min_stock'];
 
+        if (isset($validated['weight_kg']) && $validated['weight_kg'] !== '') {
+            $validated['weight_kg'] = (float) $validated['weight_kg'];
+        }
+
+        if (isset($validated['volume_cbm']) && $validated['volume_cbm'] !== '') {
+            $validated['volume_cbm'] = (float) $validated['volume_cbm'];
+        }
+
         if (isset($validated['warranty_months']) && $validated['warranty_months'] !== '') {
             $validated['warranty_months'] = (int) $validated['warranty_months'];
         }
-        if (!empty($validated['expiry_date'])) {
+
+        if (! empty($validated['received_at'])) {
+            $validated['received_at'] = date('Y-m-d H:i:s', strtotime($validated['received_at']));
+        }
+
+        if (! empty($validated['expiry_date'])) {
             $validated['expiry_date'] = date('Y-m-d H:i:s', strtotime($validated['expiry_date']));
         }
 
-        $fields = array_filter($validated, fn($val) => $val !== null && $val !== '');
+        $fields = array_filter($validated, fn ($val) => $val !== null && $val !== '');
         $fields['id_warehouse'] = $idWarehouse;
 
         $this->stardust->updateEntry($tenantId, $id, $fields);
@@ -378,10 +411,12 @@ class InventoryController extends Controller
         [$tenantId] = $this->resolveContext($request);
 
         $amount = (int) $request->input('amount', 1);
-        if ($amount <= 0) $amount = 1;
+        if ($amount <= 0) {
+            $amount = 1;
+        }
 
         $entry = $this->stardust->get($tenantId, $id);
-        if (!$entry) {
+        if (! $entry) {
             return redirect()->back()->with('error', 'Barang tidak ditemukan di StarDust.');
         }
 
@@ -401,10 +436,12 @@ class InventoryController extends Controller
         [$tenantId] = $this->resolveContext($request);
 
         $amount = (int) $request->input('amount', 1);
-        if ($amount <= 0) $amount = 1;
+        if ($amount <= 0) {
+            $amount = 1;
+        }
 
         $entry = $this->stardust->get($tenantId, $id);
-        if (!$entry) {
+        if (! $entry) {
             return redirect()->back()->with('error', 'Barang tidak ditemukan di StarDust.');
         }
 
@@ -421,7 +458,7 @@ class InventoryController extends Controller
         return redirect()->back()->with('success', "Stok barang '{$fields['name']}' berhasil dikurangi (-{$amount}) di StarDust Engine!");
     }
 
-        /**
+    /**
      * StarDust Bulk Ingestion — dikustomisasi lewat form: jumlah barang,
      * ukuran chunk, delay antar-chunk, dan mode (sync/async).
      */
@@ -455,6 +492,9 @@ class InventoryController extends Controller
             $category = $faker->randomElement($categories);
             $sequenceByCategory[$category] = ($sequenceByCategory[$category] ?? 0) + 1;
 
+            $receivedAt = $faker->dateTimeBetween('-5 years', 'now')->format('Y-m-d H:i:s');
+            $expiryDate = $faker->dateTimeBetween('-3 years', '+5 years')->format('Y-m-d H:i:s');
+
             $item = [
                 'id_warehouse' => $warehouseId,
                 'name' => ucfirst($faker->words(3, true)),
@@ -462,12 +502,28 @@ class InventoryController extends Controller
                 'category' => $category,
                 'quantity' => $faker->numberBetween(0, 200),
                 'price' => $faker->numberBetween(15, 25000) * 1000,
-                'unit' => $faker->randomElement(['Pcs', 'Unit', 'Box', 'Botol', 'Bungkus']),
+                'unit' => $faker->randomElement(['Pcs', 'Unit', 'Box', 'Botol', 'Bungkus', 'Karton', 'Set']),
                 'supplier' => $faker->company(),
-                'location' => 'Rak ' . strtoupper($faker->lexify('?')) . '-' . $faker->numberBetween(1, 20),
+                'location' => 'Rak '.strtoupper($faker->lexify('?')).'-'.$faker->numberBetween(1, 20),
                 'min_stock' => $faker->numberBetween(2, 20),
+                'weight_kg' => $faker->randomFloat(2, 0.1, 45.0),
+                'volume_cbm' => $faker->randomFloat(3, 0.001, 1.5),
+                'received_at' => $receivedAt,
+                'expiry_date' => $expiryDate,
                 'description' => $faker->sentence(6),
             ];
+
+            if ($faker->boolean(40)) {
+                $item['batch_number'] = 'BATCH-'.$faker->numerify('####-##');
+            }
+
+            if ($faker->boolean(40)) {
+                $item['serial_number'] = strtoupper($faker->bothify('SN-####-???'));
+            }
+
+            if ($faker->boolean(50)) {
+                $item['warranty_months'] = $faker->randomElement([6, 12, 24, 36]);
+            }
 
             $payloads[] = new EntryPayload(tenantId: $tenantId, modelId: $modelId, fields: $item);
         }
@@ -479,9 +535,9 @@ class InventoryController extends Controller
                 $jobId = $this->stardust->submitBulkWrite($tenantId, $payloads);
 
                 return redirect()->route('inventory.index', ['warehouse' => $warehouseId])
-                    ->with('success', "Bulk write ASYNC disubmit! Job #{$jobId->jobId} ({$count} barang). Job ini BARU diproses kalau proses Reconciler dijalankan terpisah: `vendor\\bin\\stardust reconciler`. Cek status: " . route('inventory.bulk-import.status', $jobId->jobId));
+                    ->with('success', "Bulk write ASYNC disubmit! Job #{$jobId->jobId} ({$count} barang). Job ini BARU diproses kalau proses Reconciler dijalankan terpisah: `vendor\\bin\\stardust reconciler`. Cek status: ".route('inventory.bulk-import.status', $jobId->jobId));
             } catch (\Throwable $e) {
-                return redirect()->back()->with('error', 'Gagal submit async bulk write: ' . $e->getMessage());
+                return redirect()->back()->with('error', 'Gagal submit async bulk write: '.$e->getMessage());
             }
         }
 
@@ -491,8 +547,8 @@ class InventoryController extends Controller
             $result = $this->stardust->bulkWrite($payloads, $options);
 
             return redirect()->route('inventory.index', ['warehouse' => $warehouseId])
-                ->with('success', "Bulk write SYNC berhasil! {$result->entriesCommitted} barang tersimpan dalam " . count($result->chunks) . " chunk (ukuran chunk: {$chunkSize}, delay: {$delayMs}ms).");
-        } catch (\StarDust\Exception\PayloadTooLargeException $e) {
+                ->with('success', "Bulk write SYNC berhasil! {$result->entriesCommitted} barang tersimpan dalam ".count($result->chunks)." chunk (ukuran chunk: {$chunkSize}, delay: {$delayMs}ms).");
+        } catch (PayloadTooLargeException $e) {
             return redirect()->back()->with('error', "Jumlah {$count} terlalu besar untuk mode Sync (maksimal 1000). Gunakan mode Async untuk jumlah lebih besar.");
         }
     }
@@ -506,14 +562,14 @@ class InventoryController extends Controller
 
         $job = $this->stardust->getImportJob($tenantId, $jobId);
 
-        if (!$job) {
+        if (! $job) {
             return redirect()->route('inventory.index', ['warehouse' => $warehouseId])
                 ->with('error', "Job import #{$jobId} tidak ditemukan.");
         }
 
         $message = "Job #{$job->id} — status: {$job->status} — {$job->entriesWritten}/{$job->entryCount} entri tertulis"
-            . ($job->chunks !== null ? " ({$job->chunks} chunk selesai)" : '')
-            . ($job->status === 'pending' ? '. Jalankan `vendor\\bin\\stardust reconciler` untuk memproses.' : '.');
+            .($job->chunks !== null ? " ({$job->chunks} chunk selesai)" : '')
+            .($job->status === 'pending' ? '. Jalankan `vendor\\bin\\stardust reconciler` untuk memproses.' : '.');
 
         return redirect()->route('inventory.index', ['warehouse' => $warehouseId])
             ->with($job->status === 'failed' ? 'error' : 'success', $message);
@@ -528,13 +584,13 @@ class InventoryController extends Controller
 
         $deleted = $this->stardust->deleteEntry($tenantId, $id);
 
-        if (!$deleted) {
+        if (! $deleted) {
             return redirect()->route('inventory.index', ['warehouse' => $warehouseId])
                 ->with('error', 'Gagal menghapus barang atau barang tidak ditemukan.');
         }
 
         // Hard-delete physical row from entry_data to ensure database row count decreases
-        \Illuminate\Support\Facades\DB::table('entry_data')
+        DB::table('entry_data')
             ->where('tenant_id', $tenantId)
             ->where('id', $id)
             ->delete();

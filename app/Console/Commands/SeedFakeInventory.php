@@ -2,12 +2,12 @@
 
 namespace App\Console\Commands;
 
+use App\Support\SkuGenerator;
+use Faker\Factory as FakerFactory;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use StarDust\StarDust;
 use StarDust\Write\EntryPayload;
-use App\Support\SkuGenerator;
-use Faker\Factory as FakerFactory;
 
 class SeedFakeInventory extends Command
 {
@@ -34,14 +34,16 @@ class SeedFakeInventory extends Command
         $gudangModelId = $this->resolveModelId($stardust, $tenantId, $warehouseModelName);
         $barangModelId = $this->resolveModelId($stardust, $tenantId, $itemModelName);
 
-        if (!$gudangModelId || !$barangModelId) {
+        if (! $gudangModelId || ! $barangModelId) {
             $this->error("Model '{$warehouseModelName}' / '{$itemModelName}' belum terdaftar. Jalankan `php artisan inventory:setup` dulu.");
+
             return Command::FAILURE;
         }
 
         if ($this->option('fresh')) {
-            if (!$this->confirm('Ini akan MENGHAPUS semua data gudang & barang yang ada saat ini. Lanjutkan?', false)) {
+            if (! $this->confirm('Ini akan MENGHAPUS semua data gudang & barang yang ada saat ini. Lanjutkan?', false)) {
                 $this->info('Dibatalkan.');
+
                 return Command::SUCCESS;
             }
 
@@ -60,7 +62,7 @@ class SeedFakeInventory extends Command
 
         for ($i = 0; $i < $warehouseCount; $i++) {
             $city = $faker->city();
-            $code = 'WH-' . strtoupper($faker->lexify('???')) . '-' . str_pad((string) ($i + 1), 2, '0', STR_PAD_LEFT);
+            $code = 'WH-'.strtoupper($faker->lexify('???')).'-'.str_pad((string) ($i + 1), 2, '0', STR_PAD_LEFT);
 
             $fields = [
                 'name' => "Gudang {$faker->companySuffix()} {$city}",
@@ -93,9 +95,11 @@ class SeedFakeInventory extends Command
 
                 $sku = SkuGenerator::generate($category, $warehouse['code'], $sequenceByCategory[$category]);
 
-                $hasExpiry = $faker->boolean(30);
                 $quantity = $faker->numberBetween(0, 200);
                 $minStock = $faker->numberBetween(2, 20);
+
+                $receivedAt = $faker->dateTimeBetween('-5 years', 'now')->format('Y-m-d H:i:s');
+                $expiryDate = $faker->dateTimeBetween('-3 years', '+5 years')->format('Y-m-d H:i:s');
 
                 $fields = [
                     'id_warehouse' => $warehouse['id'],
@@ -104,21 +108,26 @@ class SeedFakeInventory extends Command
                     'category' => $category,
                     'quantity' => $quantity,
                     'price' => $faker->numberBetween(15, 25000) * 1000,
-                    'unit' => $faker->randomElement(['Pcs', 'Unit', 'Box', 'Botol', 'Bungkus']),
+                    'unit' => $faker->randomElement(['Pcs', 'Unit', 'Box', 'Botol', 'Bungkus', 'Karton', 'Set']),
                     'supplier' => $faker->company(),
-                    'location' => 'Rak ' . strtoupper($faker->lexify('?')) . '-' . $faker->numberBetween(1, 20),
+                    'location' => 'Rak '.strtoupper($faker->lexify('?')).'-'.$faker->numberBetween(1, 20),
                     'min_stock' => $minStock,
+                    'weight_kg' => $faker->randomFloat(2, 0.1, 45.0),
+                    'volume_cbm' => $faker->randomFloat(3, 0.001, 1.5),
+                    'received_at' => $receivedAt,
+                    'expiry_date' => $expiryDate,
                     'description' => $faker->sentence(8),
                 ];
 
-                if ($faker->boolean(20)) {
+                if ($faker->boolean(40)) {
+                    $fields['batch_number'] = 'BATCH-'.$faker->numerify('####-##');
+                }
+
+                if ($faker->boolean(40)) {
                     $fields['serial_number'] = strtoupper($faker->bothify('SN-####-???'));
                 }
 
-                if ($hasExpiry) {
-                    $fields['batch_number'] = 'BATCH-' . $faker->numerify('####-##');
-                    $fields['expiry_date'] = $faker->dateTimeBetween('now', '+2 years')->format('Y-m-d H:i:s');
-                } else {
+                if ($faker->boolean(50)) {
                     $fields['warranty_months'] = $faker->randomElement([6, 12, 24, 36]);
                 }
 
@@ -143,6 +152,7 @@ class SeedFakeInventory extends Command
     private function resolveModelId(StarDust $stardust, int $tenantId, string $modelName): ?int
     {
         $model = collect($stardust->listModels($tenantId))->firstWhere('name', $modelName);
+
         return $model?->modelId;
     }
 

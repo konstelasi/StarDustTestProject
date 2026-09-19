@@ -78,11 +78,21 @@
             <div style="font-family: var(--font-heading); font-size: 0.75rem; color: var(--brass); text-transform: uppercase;">Minimum Stock Threshold</div>
             <div style="font-size: 0.95rem; color: var(--text-main); margin-top: 0.25rem;">{{ $item->min_stock ?? 0 }} {{ $item->unit ?? 'Pcs' }}</div>
         </div>
+
+        <div>
+            <div style="font-family: var(--font-heading); font-size: 0.75rem; color: var(--brass); text-transform: uppercase;">Berat Fisik (Kg) [Num/Double]</div>
+            <div style="font-family: var(--font-mono); font-size: 0.95rem; color: #a5f3fc; margin-top: 0.25rem;">{{ isset($item->weight_kg) ? number_format((float)$item->weight_kg, 2) . ' kg' : '-' }}</div>
+        </div>
+
+        <div>
+            <div style="font-family: var(--font-heading); font-size: 0.75rem; color: var(--brass); text-transform: uppercase;">Volume Space (m³) [Num/Double]</div>
+            <div style="font-family: var(--font-mono); font-size: 0.95rem; color: #a5f3fc; margin-top: 0.25rem;">{{ isset($item->volume_cbm) ? number_format((float)$item->volume_cbm, 3) . ' m³' : '-' }}</div>
+        </div>
     </div>
 
     <!-- Schemaless Dynamic Custom Attributes -->
     <h4 style="font-family: var(--font-heading); font-size: 0.95rem; color: var(--brass); margin-top: 2rem; margin-bottom: 1rem; padding-bottom: 0.4rem; border-bottom: 1px dashed var(--border-color);">
-        Atribut Dinamis Khusus (Dynamic Schemaless Payload)
+        Atribut Terindeks & Custom Payload (StarDust Slotted Fields)
     </h4>
 
     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; margin-bottom: 1.5rem;">
@@ -91,8 +101,12 @@
             <div style="font-family: var(--font-mono); font-size: 0.9rem; color: var(--parchment);">{{ $item->batch_number ?? '-' }}</div>
         </div>
         <div>
-            <div style="font-size: 0.75rem; color: var(--text-muted);">Tanggal Expiry</div>
-            <div style="font-family: var(--font-mono); font-size: 0.9rem; color: var(--parchment);">{{ $item->expiry_date ?? '-' }}</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">Waktu Inbound [DateTime]</div>
+            <div style="font-family: var(--font-mono); font-size: 0.9rem; color: #fef08a;">{{ !empty($item->received_at) ? date('d M Y H:i', strtotime($item->received_at)) : '-' }}</div>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">Tanggal Expiry [DateTime]</div>
+            <div style="font-family: var(--font-mono); font-size: 0.9rem; color: #fef08a;">{{ !empty($item->expiry_date) ? date('d M Y', strtotime($item->expiry_date)) : '-' }}</div>
         </div>
         <div>
             <div style="font-size: 0.75rem; color: var(--text-muted);">Masa Garansi</div>

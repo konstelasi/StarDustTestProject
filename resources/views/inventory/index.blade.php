@@ -187,6 +187,18 @@
                         </a>
                     </th>
                     <th>
+                        <a href="{{ $makeSortUrl('weight_kg') }}" class="sort-header-link {{ $currentSort === 'weight_kg' ? 'sort-header-active' : '' }}" title="Sort Berat (Num)">
+                            Berat / Vol
+                            <span class="sort-icon">{{ $currentSort === 'weight_kg' ? ($currentDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+                        </a>
+                    </th>
+                    <th>
+                        <a href="{{ $makeSortUrl('expiry_date') }}" class="sort-header-link {{ $currentSort === 'expiry_date' ? 'sort-header-active' : '' }}" title="Sort Expired Date (DT)">
+                            Exp / Inbound
+                            <span class="sort-icon">{{ $currentSort === 'expiry_date' ? ($currentDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+                        </a>
+                    </th>
+                    <th>
                         <a href="{{ $makeSortUrl('supplier') }}" class="sort-header-link {{ $currentSort === 'supplier' ? 'sort-header-active' : '' }}" title="Sort Supplier">
                             Supplier
                             <span class="sort-icon">{{ $currentSort === 'supplier' ? ($currentDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
@@ -244,6 +256,29 @@
                         </td>
                         <td>
                             <span style="color: var(--text-muted);">{{ $item->location ?? '-' }}</span>
+                        </td>
+                        <td>
+                            <div style="font-size: 0.85rem; color: #a5f3fc; font-family: var(--font-mono);">
+                                {{ isset($item->weight_kg) ? number_format((float)$item->weight_kg, 2) . ' kg' : '-' }}
+                            </div>
+                            @if(isset($item->volume_cbm))
+                                <div style="font-size: 0.75rem; color: var(--text-dim); font-family: var(--font-mono);">
+                                    {{ number_format((float)$item->volume_cbm, 3) }} m³
+                                </div>
+                            @endif
+                        </td>
+                        <td>
+                            @if(!empty($item->expiry_date))
+                                <div style="font-size: 0.825rem; color: #fef08a; font-family: var(--font-mono);">
+                                    Exp: {{ date('d M Y', strtotime($item->expiry_date)) }}
+                                </div>
+                            @elseif(!empty($item->received_at))
+                                <div style="font-size: 0.825rem; color: var(--text-muted); font-family: var(--font-mono);">
+                                    In: {{ date('d M Y', strtotime($item->received_at)) }}
+                                </div>
+                            @else
+                                <span style="color: var(--text-dim); font-size: 0.8rem;">-</span>
+                            @endif
                         </td>
                         <td>
                             <span style="color: var(--text-muted);">{{ $item->supplier ?? '-' }}</span>
