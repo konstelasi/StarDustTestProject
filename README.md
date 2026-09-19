@@ -2,7 +2,7 @@
 
 Aplikasi Manajemen Inventory dan Logistik Multi-Tenant berbasis **Laravel** dan **StarDust Engine** ([damarbob/StarDust](https://github.com/damarbob/StarDust)).
 
-Aplikasi ini mengimplementasikan arsitektur *Schemaless Dynamic Database Pattern* (SDDPG) untuk mengelola data barang dan gudang dengan performa tinggi, pencarian berbasis AST (Abstract Syntax Tree), cursor pagination, serta penulisan massal (*bulk write*) baik secara sinkron maupun asinkron.
+Aplikasi ini mengimplementasikan arsitektur *Schemaless Dynamic Database Pattern* (SDDPG) untuk mengelola data barang dan gudang dengan performa tinggi, pencarian berbasis AST (Abstract Syntax Tree), pengurutan dinamis (Ascending & Descending), cursor pagination, serta penulisan massal (*bulk write*) baik secara sinkron maupun asinkron.
 
 ---
 
@@ -29,15 +29,19 @@ Seluruh penyimpanan dan pembacaan data inventaris diproses secara murni melalui 
 
 ## Fitur Utama
 
-- **Multi-Tenant Warehouse Context**: Pengelolaan stok inventaris yang terisolasi berdasarkan lokasi gudang (misal: Gudang Utama Jakarta, Gudang Cabang Surabaya, Gudang Logistik Bandung).
-- **Dynamic Schemaless Attributes**: Mendukung penambahan bidang data fleksibel seperti tanggal kadaluarsa (*expiry date*), garansi, nomor seri (*serial number*), dan nomor batch tanpa perlu mengubah skema database relasional.
+- **Multi-Tenant Warehouse Context**: Pengelolaan stok inventaris yang terisolasi berdasarkan lokasi gudang (misal: Gudang Utama Jakarta, Gudang Cabang Surabaya, Gudang Logistik Bandung, Gudang Transit Medan, Gudang Hub Makassar).
+- **Dynamic Schemaless Attributes**: Mendukung penambahan bidang data fleksibel seperti tanggal kedaluwarsa (*expiry date* dengan rentang tahun beragam 2021–2030), berat barang (*weight kg*), volume (*volume cbm*), tanggal penerimaan (*received at*), garansi, nomor seri (*serial number*), dan nomor batch tanpa mengubah skema tabel database relasional.
+- **Full Column Sorting (ASC & DESC)**: Pengurutan presisi pada setiap kolom field filterable (`sku`, `name`, `category`, `quantity`, `price`, `location`, `weight_kg`, `expiry_date`, `supplier`) memanfaatkan `SortSpec::byField()` & `SortSpec::byId()`.
 - **High-Performance AST Filtering**: Pencarian dan penyaringan data menggunakan simpul AST (*LeafNode*, *AndNode*) untuk operasi presisi seperti *prefix match* dan *equality filter*.
-- **Opaque Cursor Pagination**: Navigasi halaman yang stabil dan cepat menggunakan token cursor, menghindari penurunan performa pada *offset pagination* tradisional.
+- **Opaque Cursor Pagination**: Navigasi halaman yang stabil dan cepat menggunakan token cursor (`Cursor`), menghindari penurunan performa pada *offset pagination* tradisional.
+- **Seeder 50 Data Barang Lengkap**: Menyediakan `InventorySeeder` dengan 50+ data sampel barang realistis yang terdistribusi di berbagai gudang.
+- **Faker Dummy Generator**: Fitur generate data pengujian cepat via konsol (`php artisan inventory:seed-fake`) maupun antarmuka web.
 - **Bulk Ingestion (Sync & Async)**:
   - **Sync Mode**: Penulisan massal langsung per-chunk dengan jeda mikrodetik (*inter-chunk delay*).
   - **Async Mode**: Antrian impor latar belakang (*background ingestion*) melalui tabel `stardust_import_jobs` yang diproses oleh *Reconciler Daemon*.
-- **Stock Movement Stepper**: Fitur penyesuaian stok masuk (*stock-in*) dan stok keluar (*stock-out*) secara cepat.
-- **Classic Industrial UI**: Antarmuka responsif bertema *Dark Industrial Logbook* dengan indikator stok rendah dan grafik statistik aset.
+- **Role-Based Access & Authentication**: Pembagian hak akses antara System Administrator dan Staff Gudang.
+- **Stock Movement Stepper**: Penyesuaian stok masuk (*stock-in*) dan stok keluar (*stock-out*) secara cepat.
+- **Classic Industrial UI**: Antarmuka responsif bertema *Dark Industrial Logbook* dengan indikator stok rendah dan ringkasan statistik aset.
 
 ---
 
@@ -45,10 +49,10 @@ Seluruh penyimpanan dan pembacaan data inventaris diproses secara murni melalui 
 
 Pastikan lingkungan server atau lokal Anda memenuhi persyaratan berikut:
 
-- **PHP**: ^8.2 (dengan ekstensi `pdo`, `pdo_mysql`, `json`, `mbstring`)
+- **PHP**: ^8.2 / 8.4 (dengan ekstensi `pdo`, `pdo_mysql`, `json`, `mbstring`)
 - **Composer**: ^2.0
-- **Database**: MySQL 8.0+ / MariaDB 10.4+
-- **Web Server**: Nginx, Apache, atau Laravel Built-in Dev Server
+- **Database**: MySQL 8.0+ / MariaDB 10.4+ / SQLite (untuk pengujian)
+- **Web Server**: Nginx, Apache, atau Laravel Built-in Dev Server (`php artisan serve`)
 
 ---
 
@@ -87,12 +91,12 @@ php artisan key:generate
 ```
 
 ### 5. Inisialisasi Database & Seeding StarDust Engine
-Jalankan perintah pengesetan StarDust Engine berikut untuk membuat tabel metadata, mendaftarkan skema model (`gudang` & `barang`), memesan slot terindeks, dan mengisi data sampel:
+Jalankan perintah pengesetan StarDust Engine berikut untuk membuat tabel metadata, mendaftarkan skema model (`gudang` & `barang`), memesan slot terindeks, dan mengisi 50 data seeder barang inventaris lengkap:
 ```bash
 php artisan inventory:setup --fresh --seed
 ```
 
-> **Catatan:** Opsi `--fresh` akan menghapus dan membuat ulang seluruh tabel StarDust, sedangkan `--seed` akan memasukkan data sampel gudang dan barang inventaris.
+> **Catatan:** Opsi `--fresh` akan menghapus dan membuat ulang seluruh tabel StarDust, sedangkan `--seed` akan memasukkan 50+ data seeder barang lengkap.
 
 ### 6. Jalankan Dev Server
 ```bash
@@ -104,20 +108,21 @@ Akses aplikasi melalui peramban web di: `http://localhost:8000/inventory`
 
 ## Struktur Perintah Artisan
 
-Aplikasi ini dilengkapi dengan perintah Artisan khusus untuk pengelolaan engine:
+Aplikasi ini dilengkapi dengan perintah Artisan khusus untuk pengelolaan engine dan data testing:
 
 | Perintah | Deskripsi |
 | :--- | :--- |
-| `php artisan inventory:setup` | Menginisialisasi skema StarDust Engine dan mendaftarkan model. |
-| `php artisan inventory:setup --seed` | Menjalankan inisialisasi sekaligus mengisi data sampel inventaris. |
-| `php artisan inventory:setup --fresh --seed` | Wiping bersih database, mengulang skema dari nol, dan mengisi data sampel. |
-| `vendor/bin/stardust reconciler` | Menjalankan proses latar belakang (*daemon worker*) untuk memproses job impor massal async. |
+| `php artisan inventory:setup` | Menginisialisasi skema StarDust Engine dan mendaftarkan model gudang & barang. |
+| `php artisan inventory:setup --seed` | Menjalankan inisialisasi sekaligus mengisi 50 data seeder barang inventaris lengkap. |
+| `php artisan inventory:setup --fresh --seed` | Menghapus database StarDust, mengulang skema dari nol, dan mengisi 50 data seeder. |
+| `php artisan inventory:seed-fake` | Membangkitkan gudang & barang dummy acak via Faker (mencakup expiry date & weight). |
+| `vendor/bin/stardust reconciler` | Menjalankan worker daemon untuk memproses job impor massal async. |
 
 ---
 
 ## Arsitektur & Konsep StarDust Engine
 
-Secara internal, StarDust memisahkan data menjadi dua tabel utama:
+Secara internal, StarDust memisahkan data menjadi dua lapisan utama:
 
 1. **Primary Data Storage (`entry_data`)**
    Tabel tempat menyimpan dokumen data lengkap dalam bentuk JSON pada kolom `fields`, beserta kolom acuan `id`, `tenant_id`, `model_id`, `created_at`, `updated_at`, dan `deleted_at`.
@@ -130,26 +135,30 @@ Secara internal, StarDust memisahkan data menjadi dua tabel utama:
           │
           ▼
    [StarDust Facade]
-     ├── write() / updateEntry() ──► entry_data (JSON Document)
+     ├── write() / bulkWrite() ───────► entry_data (JSON Document)
      │                                    │
      └── SlotReserver & Provisioner ──────┼──► entry_slots_page_X (Index Slots)
                                           │
                                           ▼
-   [EntryQuery Read] ────────────► INNER JOIN (entry_data + entry_slots_page_X)
+   [EntryQuery Read + SortSpec] ────► INNER JOIN (entry_data + entry_slots_page_X)
 ```
 
 ---
 
 ## Pengujian Otomatis
 
-Seluruh pengujian alur fitur (*feature tests*) dan pengujian integrasi engine dikemas dalam suite PHPUnit Laravel.
+Seluruh pengujian alur fitur (*feature tests*) dan integrasi engine dikemas dalam suite PHPUnit Laravel.
 
 Untuk menjalankan pengujian otomatis:
 ```bash
 php artisan test
 ```
+atau
+```bash
+vendor/bin/phpunit
+```
 
-Aplikasi telah lulus 100% pada suite pengujian fitur inventaris (`Tests\Feature\InventoryTest`).
+Aplikasi telah lulus **100% (24 Tests Passed)** pada suite pengujian fitur inventaris.
 
 ---
 

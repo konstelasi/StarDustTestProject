@@ -1,32 +1,57 @@
-*.log
-.DS_Store
+# Environment & Credentials
 .env
 .env.backup
 .env.production
-.phpactor.json
-.phpunit.result.cache
-/.codex
-/.cursor/
-/.idea
-/.nova
-/.phpunit.cache
-/.vscode
-/.zed
+.env.local
 /auth.json
+
+# Dependencies & Build Outputs
+/vendor
 /node_modules
 /public/build
-/public/fonts-manifest.dev.json
 /public/hot
 /public/storage
+/public/fonts-manifest.dev.json
+
+# Storage & Framework Caches
 /storage/*.key
 /storage/pail
-/vendor
+/storage/logs/*
+!/storage/logs/.gitkeep
+/storage/framework/cache/*
+!/storage/framework/cache/.gitkeep
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitkeep
+/storage/framework/views/*
+!/storage/framework/views/.gitkeep
+/storage/framework/testing/*
+!/storage/framework/testing/.gitkeep
+/bootstrap/cache/*.php
+!/bootstrap/cache/.gitkeep
+
+# Database & SQLite files
+/database/*.sqlite
+/database/*.sqlite-journal
+/inventory_stardust
+
+# Testing & Cache
+*.log
+.phpunit.result.cache
+/.phpunit.cache
+
+# System & IDE Files
+.DS_Store
+Thumbs.db
+.phpactor.json
 _ide_helper.php
 Homestead.json
 Homestead.yaml
-Thumbs.db
-.claude
-/inventory_stardust
-/database/*.sqlite
-/database/*.sqlite-journal
+/.idea
+/.vscode
+/.cursor/
+/.codex
+/.nova
+/.zed
 
+# AI Tooling & Local Scratch
+.claude
