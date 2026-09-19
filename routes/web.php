@@ -1,9 +1,9 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\WarehouseController;
-use App\Http\Controllers\AuthController;
+use Illuminate\Support\Facades\Route;
 
 // --- Guest Authentication Routes ---
 Route::middleware('guest')->group(function () {

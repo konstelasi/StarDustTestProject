@@ -30,7 +30,7 @@
                 </a>
                 @if ($authUser && $authUser->isAdmin())
                     <a href="{{ route('warehouses.create') }}" class="nav-link {{ request()->routeIs('warehouses.create') ? 'active' : '' }}" id="nav-create-warehouse-link">
-                        + Tambah Gudang
+                        Tambah Gudang
                     </a>
                 @endif
             </nav>
@@ -84,11 +84,11 @@
                         </select>
                     </form>
                     <a href="{{ route('warehouses.create') }}" class="btn btn-secondary btn-sm" id="btn-add-warehouse-top" title="Tambah Gudang Baru">
-                        + Gudang
+                        Tambah Gudang
                     </a>
                 @else
                     <span style="font-size: 0.825rem; color: var(--text-muted); background: #f1f5f9; padding: 4px 10px; border-radius: 4px;">
-                        🔒 Gudang Tugas: {{ $navCurrentWarehouse->name ?? '-' }}
+                         Gudang Tugas: {{ $navCurrentWarehouse->name ?? '-' }}
                     </span>
                 @endif
             </div>

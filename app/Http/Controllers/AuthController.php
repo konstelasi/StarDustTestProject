@@ -67,7 +67,7 @@ class AuthController extends Controller
     public function toggleAppMode(Request $request)
     {
         $user = Auth::user();
-        if (!$user || !$user->isAdmin()) {
+        if (! $user || ! $user->isAdmin()) {
             abort(403, 'Akses ditolak. Hanya Admin yang dapat mengubah mode aplikasi.');
         }
 
@@ -76,6 +76,6 @@ class AuthController extends Controller
 
         session(['app_mode' => $newMode]);
 
-        return back()->with('success', "Mode Aplikasi berhasil diubah menjadi: " . strtoupper($newMode));
+        return back()->with('success', 'Mode Aplikasi berhasil diubah menjadi: '.strtoupper($newMode));
     }
 }

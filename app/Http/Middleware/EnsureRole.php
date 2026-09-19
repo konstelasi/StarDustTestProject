@@ -12,22 +12,21 @@ class EnsureRole
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     * @param  string  ...$roles
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
-        if (!Auth::check()) {
+        if (! Auth::check()) {
             return redirect()->route('login');
         }
 
         $user = Auth::user();
 
-        if (!in_array($user->role, $roles, true)) {
+        if (! in_array($user->role, $roles, true)) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Forbidden. Anda tidak memiliki izin untuk fitur ini.'], 403);
             }
-            abort(403, 'Akses ditolak. Fitur ini hanya dapat diakses oleh peran: ' . implode(', ', $roles));
+            abort(403, 'Akses ditolak. Fitur ini hanya dapat diakses oleh peran: '.implode(', ', $roles));
         }
 
         return $next($request);

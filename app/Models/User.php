@@ -40,4 +40,3 @@ class User extends Authenticatable
         return $this->role === 'user' || $this->role === 'staff';
     }
 }
-

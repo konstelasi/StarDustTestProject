@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Database\Seeders\UserSeeder;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -23,7 +24,7 @@ class AuthAndModesTest extends TestCase
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
         $this->artisan('inventory:setup', ['--seed' => true]);
-        $this->seed(\Database\Seeders\UserSeeder::class);
+        $this->seed(UserSeeder::class);
     }
 
     public function test_login_page_renders_successfully(): void
