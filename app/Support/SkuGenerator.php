@@ -21,7 +21,7 @@ class SkuGenerator
         $yymm = date('ym');
         $seq = str_pad((string) $sequence, 5, '0', STR_PAD_LEFT);
 
-        $digits = $yymm . $seq;
+        $digits = $yymm.$seq;
         $check = self::checkDigit($digits);
 
         return "{$categoryCode}-{$warehouseCode}-{$yymm}{$seq}-{$check}";
@@ -60,7 +60,7 @@ class SkuGenerator
                 }
             }
             $sum += $d;
-            $alt = !$alt;
+            $alt = ! $alt;
         }
 
         return (10 - ($sum % 10)) % 10;

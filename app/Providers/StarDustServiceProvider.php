@@ -2,11 +2,12 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\DB;
-use StarDust\StarDust;
-use StarDust\Config\Config;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\ServiceProvider;
 use PDO;
+use StarDust\Config\Config;
+use StarDust\StarDust;
 
 class StarDustServiceProvider extends ServiceProvider
 {
@@ -19,9 +20,10 @@ class StarDustServiceProvider extends ServiceProvider
             $pdo = DB::connection()->getPdo();
             // Ensure PDO error mode is exception
             $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-            
-            $logger = \Illuminate\Support\Facades\Log::getLogger();
+
+            $logger = Log::getLogger();
             $config = new Config(pdo: $pdo, logger: $logger);
+
             return new StarDust($config);
         });
     }

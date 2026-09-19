@@ -2,10 +2,10 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
-use StarDust\StarDust;
+use Illuminate\Support\ServiceProvider;
 use StarDust\Read\EntryQuery;
+use StarDust\StarDust;
 
 class AppServiceProvider extends ServiceProvider
 {
