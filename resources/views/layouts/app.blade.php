@@ -32,6 +32,9 @@
                     <a href="{{ route('warehouses.create') }}" class="nav-link {{ request()->routeIs('warehouses.create') ? 'active' : '' }}" id="nav-create-warehouse-link">
                         Tambah Gudang
                     </a>
+                    <a href="{{ route('staff.index') }}" class="nav-link {{ request()->routeIs('staff.index') ? 'active' : '' }}" id="nav-staff-index-link">
+                    Atur Staff
+                </a>
                 @endif
             </nav>
         </div>
@@ -78,7 +81,7 @@
                         <select name="warehouse" id="warehouse-select" class="form-control" onchange="this.form.submit()" style="width: 200px;">
                             @foreach ($navWarehouses as $w)
                                 <option value="{{ $w->id }}" {{ ($navCurrentWarehouse->id ?? null) == $w->id ? 'selected' : '' }}>
-                                    {{ $w->name }}
+                                    {{ $w->name }} @if(!empty($w->code)) ({{ $w->code }}) @endif
                                 </option>
                             @endforeach
                         </select>
@@ -86,9 +89,20 @@
                     <a href="{{ route('warehouses.create') }}" class="btn btn-secondary btn-sm" id="btn-add-warehouse-top" title="Tambah Gudang Baru">
                         Tambah Gudang
                     </a>
+                @elseif ($navStaffWarehouses->count() > 0)
+                    <form action="{{ route('inventory.index') }}" method="GET" class="warehouse-selector-form" id="staff-warehouse-switch-form">
+                        <label for="staff-warehouse-select" style="font-size: 0.85rem; color: var(--text-muted);">Gudang Tugas:</label>
+                        <select name="warehouse" id="staff-warehouse-select" class="form-control" onchange="this.form.submit()" style="width: 200px;">
+                            @foreach ($navStaffWarehouses as $w)
+                                <option value="{{ $w->id }}" {{ ($navCurrentWarehouse->id ?? null) == $w->id ? 'selected' : '' }}>
+                                    {{ $w->name }} @if(!empty($w->code)) ({{ $w->code }}) @endif
+                                </option>
+                            @endforeach
+                        </select>
+                    </form>
                 @else
                     <span style="font-size: 0.825rem; color: var(--text-muted); background: #f1f5f9; padding: 4px 10px; border-radius: 4px;">
-                         Gudang Tugas: {{ $navCurrentWarehouse->name ?? '-' }}
+                        Belum ada gudang yang ditugaskan
                     </span>
                 @endif
             </div>

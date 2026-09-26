@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class AuthController extends Controller
 {
@@ -35,8 +36,15 @@ class AuthController extends Controller
             $request->session()->regenerate();
 
             $user = Auth::user();
-            if ($user->isStaff() && $user->id_warehouse) {
-                session(['active_warehouse' => $user->id_warehouse]);
+            if ($user->isStaff()) {
+                $staffWhId = DB::table('warehouse_staff')
+                    ->where('user_id', $user->id)
+                    ->value('warehouse_id');
+                if ($staffWhId) {
+                    session(['active_warehouse' => (int) $staffWhId]);
+                } elseif ($user->id_warehouse) {
+                    session(['active_warehouse' => (int) $user->id_warehouse]);
+                }
             }
 
             return redirect()->intended(route('inventory.index'))

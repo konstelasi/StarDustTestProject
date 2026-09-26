@@ -32,5 +32,42 @@ class UserSeeder extends Seeder
                 'id_warehouse' => 1,
             ]
         );
+        User::updateOrCreate(
+            ['email' => 'staff2@stardust.com'],
+            [
+                'name' => 'Staff Gudang Jakarta',
+                'password' => Hash::make('password'),
+                'role' => 'user',
+                'id_warehouse' => 2,
+            ]
+        );
+
+        User::updateOrCreate(
+            ['email' => 'staff3@stardust.com'],
+            [
+                'name' => 'Staff Gudang Semarang',
+                'password' => Hash::make('password'),
+                'role' => 'user',
+                'id_warehouse' => 3,
+            ]
+        );
+        User::updateOrCreate(
+            ['email' => 'staff4@stardust.com'],
+            [
+                'name' => 'Staff Gudang Bandung',
+                'password' => Hash::make('password'),
+                'role' => 'user',
+                'id_warehouse' => 4,
+            ]
+        );
+        User::updateOrCreate(
+            ['email' => 'staff5@stardust.com'],
+            [
+                'name' => 'Staff Gudang Surabaya',
+                'password' => Hash::make('password'),
+                'role' => 'user',
+                'id_warehouse' => 5,
+            ]
+        );
     }
 }

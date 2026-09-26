@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\WarehouseController;
+use App\Http\Controllers\WarehouseStaffController;
 use Illuminate\Support\Facades\Route;
 
 // --- Guest Authentication Routes ---
@@ -39,4 +40,8 @@ Route::middleware('auth')->group(function () {
     Route::post('inventory/{inventory}/stock-out', [InventoryController::class, 'stockOut'])->name('inventory.stock-out');
 
     Route::resource('inventory', InventoryController::class)->except(['destroy']);
+
+    Route::get('/staff', [WarehouseStaffController::class, 'index'])->name('staff.index');
+    Route::get('/staff/{warehouse}/edit', [WarehouseStaffController::class, 'edit'])->name('staff.edit');
+    Route::put('/staff/{warehouse}', [WarehouseStaffController::class, 'update'])->name('staff.update');
 });

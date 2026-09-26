@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use StarDust\Read\EntryQuery;
@@ -42,11 +43,35 @@ class AppServiceProvider extends ServiceProvider
                 $warehouses = collect();
             }
 
+            $authUser = auth()->user();
+            $staffWarehouseIds = [];
+
+            if ($authUser && ! $authUser->isAdmin()) {
+                $staffWarehouseIds = DB::table('warehouse_staff')
+                    ->where('user_id', $authUser->id)
+                    ->pluck('warehouse_id')
+                    ->map(fn ($id) => (int) $id)
+                    ->toArray();
+
+                if (empty($staffWarehouseIds) && $authUser->id_warehouse) {
+                    $staffWarehouseIds = [(int) $authUser->id_warehouse];
+                }
+            }
+
+            $staffWarehouses = $warehouses->whereIn('id', $staffWarehouseIds)->values();
+
             $currentId = session('active_warehouse');
             $current = $currentId !== null
                 ? $warehouses->firstWhere('id', (int) $currentId)
                 : null;
 
+            if ($authUser && ! $authUser->isAdmin()) {
+                if (! $current || ! $staffWarehouses->pluck('id')->contains($current->id)) {
+                    $current = $staffWarehouses->first();
+                }
+            }
+
+            $view->with('navStaffWarehouses', $staffWarehouses);
             $view->with('navWarehouses', $warehouses);
             $view->with('navCurrentWarehouse', $current ?? $warehouses->first());
         });

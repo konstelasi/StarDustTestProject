@@ -62,18 +62,40 @@ class InventoryController extends Controller
 
         $user = Auth::user();
 
-        if ($user && $user->isStaff() && $user->id_warehouse) {
-            $warehouseId = (int) $user->id_warehouse;
+        if ($user && $user->isStaff()) {
+            $staffWarehouseIds = DB::table('warehouse_staff')
+                ->where('user_id', $user->id)
+                ->pluck('warehouse_id')
+                ->map(fn ($id) => (int) $id)
+                ->toArray();
+
+            if (empty($staffWarehouseIds) && $user->id_warehouse) {
+                $staffWarehouseIds = [(int) $user->id_warehouse];
+            }
+
+            $allowedWarehouses = $warehouses->whereIn('id', $staffWarehouseIds)->values();
+
+            $requestedId = $request->input('warehouse', session('active_warehouse'));
+            $warehouseId = $requestedId !== null ? (int) $requestedId : null;
+
+            if ($warehouseId !== null && $allowedWarehouses->pluck('id')->contains($warehouseId)) {
+                $activeWarehouse = $allowedWarehouses->firstWhere('id', $warehouseId);
+            } else {
+                $activeWarehouse = $allowedWarehouses->first();
+                $warehouseId = $activeWarehouse->id ?? null;
+            }
+
+            $warehouses = $allowedWarehouses;
         } else {
             $requestedId = $request->input('warehouse', session('active_warehouse'));
             $warehouseId = $requestedId !== null ? (int) $requestedId : null;
-        }
 
-        $activeWarehouse = $warehouseId !== null ? $warehouses->firstWhere('id', $warehouseId) : null;
+            $activeWarehouse = $warehouseId !== null ? $warehouses->firstWhere('id', $warehouseId) : null;
 
-        if (! $activeWarehouse) {
-            $activeWarehouse = $warehouses->first();
-            $warehouseId = $activeWarehouse->id ?? null;
+            if (! $activeWarehouse) {
+                $activeWarehouse = $warehouses->first();
+                $warehouseId = $activeWarehouse->id ?? null;
+            }
         }
 
         session(['active_warehouse' => $warehouseId]);
