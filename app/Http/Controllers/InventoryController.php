@@ -111,7 +111,14 @@ class InventoryController extends Controller
         [$tenantId, $modelId, $warehouseId, $activeWarehouse, $warehouses] = $this->resolveContext($request);
 
         $search = $request->input('search');
-        $category = $request->input('category');
+        $categoryInput = $request->input('category');
+        $selectedCategories = [];
+        if (is_array($categoryInput)) {
+            $selectedCategories = array_values(array_filter($categoryInput));
+        } elseif (! empty($categoryInput)) {
+            $selectedCategories = [$categoryInput];
+        }
+
         $lowStock = $request->boolean('low_stock');
         $cursor = $request->input('cursor');
 
@@ -141,8 +148,12 @@ class InventoryController extends Controller
             $filterNodes[] = LeafNode::local('id_warehouse', 'eq', $warehouseId);
         }
 
-        if ($category) {
-            $filterNodes[] = LeafNode::local('category', 'eq', $category);
+        if (! empty($selectedCategories)) {
+            if (count($selectedCategories) === 1) {
+                $filterNodes[] = LeafNode::local('category', 'eq', $selectedCategories[0]);
+            } else {
+                $filterNodes[] = LeafNode::local('category', 'in', $selectedCategories);
+            }
         }
 
         if ($search) {
@@ -229,7 +240,7 @@ class InventoryController extends Controller
             'categories' => $categories,
             'stats' => $stats,
             'currentSearch' => $search,
-            'currentCategory' => $category,
+            'currentCategory' => $selectedCategories,
             'currentLowStock' => $lowStock,
             'currentSort' => $sortBy,
             'currentDir' => $sortBy ? ($sortDirInput === 'desc' ? 'desc' : 'asc') : null,

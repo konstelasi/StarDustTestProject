@@ -95,14 +95,35 @@
                        style="width: 260px;">
             </div>
 
-            <select name="category" class="form-control" id="category-select" onchange="this.form.submit()">
-                <option value="">Semua Kategori</option>
-                @foreach ($categories as $cat)
-                    <option value="{{ $cat }}" {{ $currentCategory == $cat ? 'selected' : '' }}>
-                        {{ $cat }}
-                    </option>
-                @endforeach
-            </select>
+            @php
+                $selectedCatList = (array) ($currentCategory ?? []);
+                $selectedCount = count($selectedCatList);
+                $dropdownLabel = 'Semua Kategori';
+                if ($selectedCount === 1) {
+                    $dropdownLabel = $selectedCatList[0];
+                } elseif ($selectedCount > 1) {
+                    $dropdownLabel = $selectedCount . ' Kategori Dipilih';
+                }
+            @endphp
+
+            <details class="multi-select-dropdown" style="position: relative; display: inline-block;">
+                <summary class="form-control" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; min-width: 180px; user-select: none; list-style: none;">
+                    <span>{{ $dropdownLabel }}</span>
+                    <small style="color: var(--text-muted); font-size: 0.7rem;">▼</small>
+                </summary>
+                <div style="position: absolute; top: 100%; left: 0; z-index: 100; margin-top: 4px; background: #ffffff; border: 1px solid var(--border-color, #cbd5e1); border-radius: 8px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); padding: 0.75rem; min-width: 220px; max-height: 280px; overflow-y: auto;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid #f1f5f9;">
+                        <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted);">Pilih Kategori</span>
+                        <button type="submit" class="btn btn-primary btn-sm" style="padding: 2px 10px; font-size: 0.75rem;">Terapkan</button>
+                    </div>
+                    @foreach ($categories as $cat)
+                        <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; padding: 0.35rem 0.25rem; cursor: pointer;">
+                            <input type="checkbox" name="category[]" value="{{ $cat }}" {{ in_array($cat, $selectedCatList) ? 'checked' : '' }}>
+                            <span>{{ $cat }}</span>
+                        </label>
+                    @endforeach
+                </div>
+            </details>
 
             <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-muted); cursor: pointer;">
                 <input type="checkbox" 
@@ -128,7 +149,7 @@
                 </select>
             </div>
 
-            @if ($currentSearch || $currentCategory || $currentLowStock || $currentSort || $currentPerPage != 20)
+            @if ($currentSearch || !empty($currentCategory) || $currentLowStock || $currentSort || $currentPerPage != 20)
                 <a href="{{ route('inventory.index', ['warehouse' => $warehouseId]) }}" class="btn btn-secondary" id="btn-reset-filter">Reset</a>
             @endif
         </div>
