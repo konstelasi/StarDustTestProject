@@ -31,9 +31,15 @@ class InventorySeeder extends Seeder
         $warehouseModelName = config('stardust.warehouse_model_name', 'gudang');
         $itemModelName = config('stardust.item_model_name', 'barang');
 
-        $models = $stardust->listModels($tenantId);
-        $gudangModel = collect($models)->firstWhere('name', $warehouseModelName);
-        $barangModel = collect($models)->firstWhere('name', $itemModelName);
+        try {
+            $models = $stardust->listModels($tenantId);
+            $gudangModel = collect($models)->firstWhere('name', $warehouseModelName);
+            $barangModel = collect($models)->firstWhere('name', $itemModelName);
+        } catch (\Throwable $e) {
+            $this->command?->warn('Tabel StarDust Engine belum siap/bootstrapped. Jalankan `php artisan inventory:setup --fresh --seed` untuk membuat skema & seed data barang.');
+
+            return;
+        }
 
         if (! $gudangModel || ! $barangModel) {
             $this->command?->warn('Model Gudang / Barang belum terdaftar di StarDust Engine. Jalankan `php artisan inventory:setup` terlebih dahulu.');

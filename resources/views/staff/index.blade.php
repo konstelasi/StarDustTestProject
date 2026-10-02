@@ -10,6 +10,24 @@
     </div>
 </div>
 
+@if (isset($unassignedStaff) && $unassignedStaff->isNotEmpty())
+    <div class="panel" style="margin-bottom: 1.5rem; border-left: 4px solid #f59e0b;" id="unassigned-staff-panel">
+        <h3 style="margin-top: 0; margin-bottom: 0.5rem; font-size: 1rem; color: #b45309; display: flex; align-items: center; gap: 0.5rem;">
+            <span>⚠️</span> Staff Belum Memiliki Penugasan Gudang ({{ $unassignedStaff->count() }})
+        </h3>
+        <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+            Staff di bawah ini telah terdaftar tetapi belum memiliki gudang penugasan. Pilih nama mereka pada dropdown <strong>Kelola Akses Staff</strong> pada gudang yang sesuai di bawah lalu simpan.
+        </p>
+        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+            @foreach ($unassignedStaff as $us)
+                <span style="background: #fffbeb; color: #b45309; border: 1px solid #fcd34d; padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.85rem; font-weight: 500;">
+                    👤 {{ $us->name }} &lt;{{ $us->email }}&gt;
+                </span>
+            @endforeach
+        </div>
+    </div>
+@endif
+
 <div class="panel">
     <div class="table-container" style="overflow-x: visible;">
         <table class="custom-table" id="staff-assignment-table">

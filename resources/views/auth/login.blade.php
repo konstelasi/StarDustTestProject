@@ -46,6 +46,10 @@
             </div>
             <button type="submit" class="btn-login">Masuk</button>
         </form>
+
+        <div style="margin-top: 1.5rem; text-align: center; font-size: 0.85rem; color: var(--auth-text-muted);">
+            Belum memiliki akun? <a href="{{ route('register') }}" id="link-register" style="color: var(--auth-primary); font-weight: 600; text-decoration: none;">Daftar</a>
+        </div>
     </div>
 
 </body>

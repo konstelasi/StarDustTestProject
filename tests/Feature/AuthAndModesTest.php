@@ -15,9 +15,11 @@ class AuthAndModesTest extends TestCase
 
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         DB::table('users')->truncate();
+        DB::table('warehouse_staff')->truncate();
         DB::table('entry_data')->truncate();
         DB::table('stardust_models')->truncate();
         DB::table('stardust_fields')->truncate();
+        DB::table('stardust_pages')->truncate();
         DB::table('stardust_slot_assignments')->truncate();
         DB::table('stardust_import_jobs')->truncate();
         DB::table('stardust_sync_queue')->truncate();
@@ -62,8 +64,8 @@ class AuthAndModesTest extends TestCase
 
         $response->assertStatus(200);
         // Staff should be forced to warehouse 1 (Gudang Utama Jakarta)
+        $response->assertSee('Gudang Tugas:');
         $response->assertSee('Gudang Utama Jakarta');
-        $response->assertSee('Gudang Tugas: Gudang Utama Jakarta');
     }
 
     public function test_staff_user_cannot_access_delete_or_bulk_import(): void
@@ -113,5 +115,98 @@ class AuthAndModesTest extends TestCase
         $response->assertRedirect();
 
         $this->assertEquals('testing', session('app_mode'));
+    }
+
+    public function test_login_page_contains_register_link(): void
+    {
+        $response = $this->get('/login');
+
+        $response->assertStatus(200);
+        $response->assertSee('Daftar Akun Baru');
+    }
+
+    public function test_register_page_renders_with_roles(): void
+    {
+        $response = $this->get('/register');
+
+        $response->assertStatus(200);
+        $response->assertSee('Peran Pengguna (Role)');
+        $response->assertSee('Staff Gudang (Staff)');
+        $response->assertSee('Administrator System (Admin)');
+    }
+
+    public function test_guest_can_register_new_user_with_role_and_warehouse(): void
+    {
+        $response = $this->post('/register', [
+            'name' => 'Bambang Subagyo',
+            'email' => 'bambang@stardust.com',
+            'role' => 'staff',
+            'id_warehouse' => 1,
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response->assertRedirect('/login');
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseHas('users', [
+            'name' => 'Bambang Subagyo',
+            'email' => 'bambang@stardust.com',
+            'role' => 'staff',
+            'id_warehouse' => 1,
+        ]);
+
+        $user = User::where('email', 'bambang@stardust.com')->first();
+        $this->assertDatabaseHas('warehouse_staff', [
+            'user_id' => $user->id,
+            'warehouse_id' => 1,
+        ]);
+    }
+
+    public function test_guest_can_register_new_staff_without_warehouse_optional(): void
+    {
+        $response = $this->post('/register', [
+            'name' => 'Siti Aminah',
+            'email' => 'siti@stardust.com',
+            'role' => 'staff',
+            'id_warehouse' => '',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response->assertRedirect('/login');
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseHas('users', [
+            'name' => 'Siti Aminah',
+            'email' => 'siti@stardust.com',
+            'role' => 'staff',
+            'id_warehouse' => null,
+        ]);
+
+        $user = User::where('email', 'siti@stardust.com')->first();
+        $this->assertDatabaseMissing('warehouse_staff', [
+            'user_id' => $user->id,
+        ]);
+    }
+
+    public function test_staff_without_warehouse_sees_warning_and_no_default_gudang_jakarta(): void
+    {
+        $staffWithoutWh = User::create([
+            'name' => 'Staff Tanpa Gudang',
+            'email' => 'tanpagudang@stardust.com',
+            'password' => bcrypt('password'),
+            'role' => 'staff',
+            'id_warehouse' => null,
+        ]);
+
+        $this->actingAs($staffWithoutWh);
+
+        $response = $this->get('/inventory');
+
+        $response->assertStatus(200);
+        $response->assertSee('Anda Belum Memiliki Gudang Penugasan');
+        $response->assertSee('Belum Memiliki Gudang');
+        $response->assertDontSee('Gudang Utama Jakarta');
     }
 }

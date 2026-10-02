@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "01ede2c48a93a5a13d4a62e3c0cb482c",
+    "content-hash": "153540178d6a3f230d92a09d371c22a9",
     "packages": [
         {
             "name": "brick/math",
@@ -142,7 +142,7 @@
         },
         {
             "name": "damarbob/stardust",
-            "version": "dev-main",
+            "version": "v0.3.0-alpha.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/damarbob/StarDust.git",
@@ -166,7 +166,6 @@
                 "phpstan/phpstan": "^2.0",
                 "phpunit/phpunit": "^10.5"
             },
-            "default-branch": true,
             "bin": [
                 "bin/stardust"
             ],
@@ -198,7 +197,7 @@
             ],
             "support": {
                 "issues": "https://github.com/damarbob/StarDust/issues",
-                "source": "https://github.com/damarbob/StarDust/tree/main"
+                "source": "https://github.com/damarbob/StarDust/tree/v0.3.0-alpha.1"
             },
             "time": "2026-09-23T02:01:13+00:00"
         },
@@ -8764,9 +8763,7 @@
     ],
     "aliases": [],
     "minimum-stability": "dev",
-    "stability-flags": {
-        "damarbob/stardust": 20
-    },
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {

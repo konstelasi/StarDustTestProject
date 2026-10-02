@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Ledger Barang - ' . ($activeWarehouse->name ?? 'Gudang') . ' • StarDust Engine')
+@section('title', 'Ledger Barang - ' . ($activeWarehouse->name ?? 'Belum Memiliki Gudang') . ' • StarDust Engine')
 @section('content')
 <div class="page-header">
     <div>
@@ -38,11 +38,28 @@
                 </form>
             </details>
         @endif
-        <a href="{{ route('inventory.create') }}" class="btn btn-primary" id="btn-add-item">
-            Registrasi Barang Baru
-        </a>
+        @if ($activeWarehouse)
+            <a href="{{ route('inventory.create') }}" class="btn btn-primary" id="btn-add-item">
+                Registrasi Barang Baru
+            </a>
+        @endif
     </div>
 </div>
+
+@if (!$activeWarehouse)
+    <div class="alert alert-warning" style="background-color: #fffbeb; border: 1px solid #fcd34d; color: #92400e; padding: 1.25rem; border-radius: 8px; margin-bottom: 1.5rem;" id="no-warehouse-warning">
+        <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+            <div style="font-size: 1.5rem; line-height: 1;">⚠️</div>
+            <div>
+                <h4 style="margin: 0 0 0.35rem 0; color: #b45309; font-weight: 600; font-size: 1.05rem;">Anda Belum Memiliki Gudang Penugasan</h4>
+                <p style="margin: 0; font-size: 0.9rem; line-height: 1.5;">
+                    Akun Anda terdaftar sebagai <strong>Staff Gudang</strong>, namun belum ditugaskan di gudang mana pun. 
+                    Pilihan gudang saat registrasi adalah opsional. Silakan hubungi <strong>Administrator System</strong> untuk memberikan akses penugasan gudang Anda melalui menu <em>Atur Staff</em>.
+                </p>
+            </div>
+        </div>
+    </div>
+@endif
 
 <!-- Stats Grid -->
 <div class="stats-grid">

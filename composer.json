@@ -7,7 +7,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.3",
-        "damarbob/stardust": "dev-main",
+        "damarbob/stardust": "0.3.0-alpha.1",
         "laravel/framework": "^13.17",
         "laravel/tinker": "^3.0"
     },

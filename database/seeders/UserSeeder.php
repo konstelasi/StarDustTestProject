@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
@@ -23,51 +24,57 @@ class UserSeeder extends Seeder
             ]
         );
 
-        User::updateOrCreate(
-            ['email' => 'staff@stardust.com'],
+        $staffUsers = [
             [
-                'name' => 'Staff Gudang Utama',
-                'password' => Hash::make('password'),
-                'role' => 'user',
+                'name' => 'Ahmad Rozak',
+                'email' => 'staff@stardust.com',
                 'id_warehouse' => 1,
-            ]
-        );
-        User::updateOrCreate(
-            ['email' => 'staff2@stardust.com'],
+            ],
             [
-                'name' => 'Staff Gudang Jakarta',
-                'password' => Hash::make('password'),
-                'role' => 'user',
+                'name' => 'Rizky Haikal',
+                'email' => 'staff2@stardust.com',
                 'id_warehouse' => 2,
-            ]
-        );
+            ],
+            [
+                'name' => 'Farrel Daffa',
+                'email' => 'staff3@stardust.com',
+                'id_warehouse' => 1,
+            ],
+            [
+                'name' => 'Putra Aditama',
+                'email' => 'staff4@stardust.com',
+                'id_warehouse' => 2,
+            ],
+            [
+                'name' => 'Fayza Dzakiyyah',
+                'email' => 'staff5@stardust.com',
+                'id_warehouse' => 2,
+            ],
+        ];
 
-        User::updateOrCreate(
-            ['email' => 'staff3@stardust.com'],
-            [
-                'name' => 'Staff Gudang Semarang',
-                'password' => Hash::make('password'),
-                'role' => 'user',
-                'id_warehouse' => 3,
-            ]
-        );
-        User::updateOrCreate(
-            ['email' => 'staff4@stardust.com'],
-            [
-                'name' => 'Staff Gudang Bandung',
-                'password' => Hash::make('password'),
-                'role' => 'user',
-                'id_warehouse' => 4,
-            ]
-        );
-        User::updateOrCreate(
-            ['email' => 'staff5@stardust.com'],
-            [
-                'name' => 'Staff Gudang Surabaya',
-                'password' => Hash::make('password'),
-                'role' => 'user',
-                'id_warehouse' => 5,
-            ]
-        );
+        foreach ($staffUsers as $s) {
+            $user = User::updateOrCreate(
+                ['email' => $s['email']],
+                [
+                    'name' => $s['name'],
+                    'password' => Hash::make('password'),
+                    'role' => 'staff',
+                    'id_warehouse' => $s['id_warehouse'],
+                ]
+            );
+
+            if ($s['id_warehouse']) {
+                DB::table('warehouse_staff')->updateOrInsert(
+                    [
+                        'warehouse_id' => $s['id_warehouse'],
+                        'user_id' => $user->id,
+                    ],
+                    [
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]
+                );
+            }
+        }
     }
 }

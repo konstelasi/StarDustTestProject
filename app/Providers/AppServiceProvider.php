@@ -73,7 +73,7 @@ class AppServiceProvider extends ServiceProvider
 
             $view->with('navStaffWarehouses', $staffWarehouses);
             $view->with('navWarehouses', $warehouses);
-            $view->with('navCurrentWarehouse', $current ?? $warehouses->first());
+            $view->with('navCurrentWarehouse', $authUser && ! $authUser->isAdmin() ? $current : ($current ?? $warehouses->first()));
         });
     }
 }

@@ -9,6 +9,7 @@ use StarDust\Page\PageProvisioner;
 use StarDust\Schema\FieldDefinition;
 use StarDust\Slot\SlotReserver;
 use StarDust\StarDust;
+use Stardust\Support\ServerEngineDetector;
 
 class SetupInventoryModel extends Command
 {
@@ -92,9 +93,13 @@ class SetupInventoryModel extends Command
         $dtSlots = ['i_dt_01', 'i_dt_02'];
 
         $pdo = $stardust->pdo();
+        $engine = ServerEngineDetector::detect($pdo);
 
-        (new PageProvisioner($pdo, $stardust->config()->clock, $stardust->logger()))
-            ->provision(filterableSlots: array_merge($strSlots, $intSlots, $numSlots, $dtSlots));
+        $pageCount = (int) DB::table('stardust_pages')->count();
+        if ($pageCount === 0) {
+            (new PageProvisioner($pdo, $stardust->config()->clock, $stardust->logger(), $engine))
+                ->provision(filterableSlots: array_merge($strSlots, $intSlots, $numSlots, $dtSlots));
+        }
 
         $reserver = new SlotReserver($pdo, $stardust->config()->clock, $stardust->logger());
 

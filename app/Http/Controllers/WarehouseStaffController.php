@@ -27,6 +27,8 @@ class WarehouseStaffController extends Controller
 
         $usersWithWarehouseCol = User::whereNotNull('id_warehouse')->get()->groupBy('id_warehouse');
 
+        $allAssignedUserIds = [];
+
         foreach ($warehouses as $warehouse) {
             $staffFromPivot = $assignments->get($warehouse->id, collect());
             $staffFromCol = $usersWithWarehouseCol->get($warehouse->id, collect());
@@ -36,6 +38,7 @@ class WarehouseStaffController extends Controller
 
             $assignedIds = array_values(array_unique(array_merge($pivotIds, $colIds)));
             $warehouse->assigned_staff_ids = $assignedIds;
+            $allAssignedUserIds = array_merge($allAssignedUserIds, $assignedIds);
 
             $namesFromPivot = $staffFromPivot->pluck('name');
             $namesFromCol = $staffFromCol->pluck('name');
@@ -43,7 +46,10 @@ class WarehouseStaffController extends Controller
             $warehouse->staff_names = $names->isNotEmpty() ? $names->implode(', ') : '-';
         }
 
-        return view('staff.index', compact('warehouses', 'staffList'));
+        $allAssignedUserIds = array_unique($allAssignedUserIds);
+        $unassignedStaff = $staffList->reject(fn ($u) => in_array($u->id, $allAssignedUserIds))->values();
+
+        return view('staff.index', compact('warehouses', 'staffList', 'unassignedStaff'));
     }
 
     public function edit($warehouseId)
@@ -74,8 +80,11 @@ class WarehouseStaffController extends Controller
             DB::table('warehouse_staff')->insert($rows);
         }
 
-        if (! empty($staffIds)) {
-            User::whereIn('id', $staffIds)->update(['id_warehouse' => $warehouseId]);
+        // Sync id_warehouse attribute on User model for consistency
+        $allStaff = User::where('role', '!=', 'admin')->get();
+        foreach ($allStaff as $st) {
+            $firstWh = DB::table('warehouse_staff')->where('user_id', $st->id)->value('warehouse_id');
+            $st->update(['id_warehouse' => $firstWh ? (int) $firstWh : null]);
         }
 
         $warehouse = collect($this->getWarehouseList())->firstWhere('id', (int) $warehouseId);

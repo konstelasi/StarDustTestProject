@@ -20,6 +20,7 @@ class WarehouseTest extends TestCase
         DB::table('entry_data')->truncate();
         DB::table('stardust_models')->truncate();
         DB::table('stardust_fields')->truncate();
+        DB::table('stardust_pages')->truncate();
         DB::table('stardust_slot_assignments')->truncate();
         DB::table('stardust_import_jobs')->truncate();
         DB::table('stardust_sync_queue')->truncate();
@@ -71,7 +72,7 @@ class WarehouseTest extends TestCase
 
     public function test_staff_cannot_access_create_warehouse_page(): void
     {
-        $staff = User::where('role', 'user')->first() ?? User::where('role', 'staff')->first();
+        $staff = User::where('role', 'staff')->first();
         $response = $this->actingAs($staff)->get('/warehouses/create');
 
         $response->assertStatus(403);
@@ -79,7 +80,7 @@ class WarehouseTest extends TestCase
 
     public function test_staff_cannot_store_new_warehouse(): void
     {
-        $staff = User::where('role', 'user')->first() ?? User::where('role', 'staff')->first();
+        $staff = User::where('role', 'staff')->first();
 
         $payload = [
             'name' => 'Gudang Unauthorized',

@@ -33,8 +33,8 @@
                         Tambah Gudang
                     </a>
                     <a href="{{ route('staff.index') }}" class="nav-link {{ request()->routeIs('staff.index') ? 'active' : '' }}" id="nav-staff-index-link">
-                    Atur Staff
-                </a>
+                        Atur Staff
+                    </a>
                 @endif
             </nav>
         </div>
@@ -67,10 +67,18 @@
         <div class="warehouse-context-bar" id="warehouse-context-bar">
             <div class="warehouse-info">
                 <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <div class="warehouse-name">{{ $navCurrentWarehouse->name ?? 'Gudang' }}</div>
+                    @if ($navCurrentWarehouse)
+                        <div class="warehouse-name">{{ $navCurrentWarehouse->name }}</div>
+                    @else
+                        <div class="warehouse-name" style="color: #f59e0b;">Belum Memiliki Gudang</div>
+                    @endif
                 </div>
                 <div class="warehouse-meta">
-                    Kode: {{ $navCurrentWarehouse->code ?? '-' }} • Manajer: {{ $navCurrentWarehouse->manager ?? '-' }} • {{ $navCurrentWarehouse->location ?? '' }}
+                    @if ($navCurrentWarehouse)
+                        Kode: {{ $navCurrentWarehouse->code ?? '-' }} • Manajer: {{ $navCurrentWarehouse->manager ?? '-' }} • {{ $navCurrentWarehouse->location ?? '' }}
+                    @else
+                        Status: Staff Tanpa Penugasan Gudang • Hubungi Administrator untuk Penugasan Gudang
+                    @endif
                 </div>
             </div>
 
@@ -101,8 +109,8 @@
                         </select>
                     </form>
                 @else
-                    <span style="font-size: 0.825rem; color: var(--text-muted); background: #f1f5f9; padding: 4px 10px; border-radius: 4px;">
-                        Belum ada gudang yang ditugaskan
+                    <span style="font-size: 0.825rem; color: #b45309; background: #fffbeb; border: 1px solid #fcd34d; padding: 4px 10px; border-radius: 4px; font-weight: 500;">
+                        Belum Ada Penugasan Gudang
                     </span>
                 @endif
             </div>

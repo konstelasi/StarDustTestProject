@@ -37,6 +37,6 @@ class User extends Authenticatable
 
     public function isStaff(): bool
     {
-        return $this->role === 'user' || $this->role === 'staff';
+        return $this->role === 'staff';
     }
 }

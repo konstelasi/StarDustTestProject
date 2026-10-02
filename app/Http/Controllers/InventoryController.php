@@ -78,7 +78,10 @@ class InventoryController extends Controller
             $requestedId = $request->input('warehouse', session('active_warehouse'));
             $warehouseId = $requestedId !== null ? (int) $requestedId : null;
 
-            if ($warehouseId !== null && $allowedWarehouses->pluck('id')->contains($warehouseId)) {
+            if ($allowedWarehouses->isEmpty()) {
+                $activeWarehouse = null;
+                $warehouseId = null;
+            } elseif ($warehouseId !== null && $allowedWarehouses->pluck('id')->contains($warehouseId)) {
                 $activeWarehouse = $allowedWarehouses->firstWhere('id', $warehouseId);
             } else {
                 $activeWarehouse = $allowedWarehouses->first();
@@ -109,6 +112,30 @@ class InventoryController extends Controller
     public function index(Request $request)
     {
         [$tenantId, $modelId, $warehouseId, $activeWarehouse, $warehouses] = $this->resolveContext($request);
+
+        $user = Auth::user();
+        if ($user && $user->isStaff() && $activeWarehouse === null) {
+            return view('inventory.index', [
+                'items' => collect(),
+                'nextCursor' => null,
+                'categories' => [],
+                'stats' => [
+                    'total_items' => 0,
+                    'total_stock' => 0,
+                    'total_value' => 0,
+                    'low_stock_count' => 0,
+                ],
+                'currentSearch' => null,
+                'currentCategory' => [],
+                'currentLowStock' => false,
+                'currentSort' => null,
+                'currentDir' => null,
+                'currentPerPage' => 20,
+                'activeWarehouse' => null,
+                'warehouses' => collect(),
+                'warehouseId' => null,
+            ]);
+        }
 
         $search = $request->input('search');
         $categoryInput = $request->input('category');
