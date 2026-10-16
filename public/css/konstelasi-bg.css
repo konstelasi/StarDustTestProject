@@ -1,0 +1,77 @@
+/* Lapisan 1: taburan bintang statis */
+html::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: #ffffff;
+    opacity: 0.6;
+    -webkit-mask: url('../images/starfield.svg') repeat 0 0 / 1000px 1000px;
+    mask: url('../images/starfield.svg') repeat 0 0 / 1000px 1000px;
+}
+
+/* Lapisan 2: bintang berkedip pelan (ukuran dan posisi beda agar tidak terlihat berulang) */
+html::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: #ffffff;
+    opacity: 0.2;
+    -webkit-mask: url('../images/starfield.svg') repeat 420px 260px / 1400px 1400px;
+    mask: url('../images/starfield.svg') repeat 420px 260px / 1400px 1400px;
+    animation: konstelasi-twinkle 6s ease-in-out infinite alternate;
+}
+
+/* Lapisan 3: rasi bintang dengan garis tipis */
+body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: #ffffff;
+    opacity: 0.32;
+    -webkit-mask: url('../images/constellations.svg') no-repeat center / cover;
+    mask: url('../images/constellations.svg') no-repeat center / cover;
+}
+
+@keyframes konstelasi-twinkle {
+    from {
+        opacity: 0.08;
+    }
+
+    to {
+        opacity: 0.55;
+    }
+}
+
+/* Tema terang: bintang jadi ungu lembut agar terlihat di atas putih */
+html[data-theme="light"]::before,
+html[data-theme="light"]::after,
+html[data-theme="light"] body::after {
+    background: #7e57c2;
+}
+
+html[data-theme="light"]::before {
+    opacity: 0.35;
+}
+
+html[data-theme="light"] body::after {
+    opacity: 0.28;
+}
+
+@media (max-width: 700px) {
+    body::after {
+        opacity: 0.2;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html::after {
+        animation: none;
+        opacity: 0.25;
+    }
+}

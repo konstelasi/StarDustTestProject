@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - StarDust Warehouse & Inventory System</title>
     <link rel="stylesheet" href="{{ asset('css/auth.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/konstelasi-bg.css') }}">
 </head>
 <body class="login-page">
 
@@ -44,12 +45,12 @@
                     <input type="checkbox" name="remember" value="1"> Ingat Sesi Saya
                 </label>
             </div>
+            <div style="text-align: right; margin-bottom: 1rem;">
+                <a href="{{ route('password.request') }}" id="link-forgot-password">Lupa password?</a>
+            </div>
             <button type="submit" class="btn-login">Masuk</button>
         </form>
 
-        <div style="margin-top: 1.5rem; text-align: center; font-size: 0.85rem; color: var(--auth-text-muted);">
-            Belum memiliki akun? <a href="{{ route('register') }}" id="link-register" style="color: var(--auth-primary); font-weight: 600; text-decoration: none;">Daftar</a>
-        </div>
     </div>
 
 </body>

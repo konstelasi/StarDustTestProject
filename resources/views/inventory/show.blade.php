@@ -92,7 +92,7 @@
 
     <!-- Schemaless Dynamic Custom Attributes -->
     <h4 style="font-family: var(--font-heading); font-size: 0.95rem; color: var(--brass); margin-top: 2rem; margin-bottom: 1rem; padding-bottom: 0.4rem; border-bottom: 1px dashed var(--border-color);">
-        Atribut Terindeks & Custom Payload (StarDust Slotted Fields)
+        Atribut System & Custom Payload (StarDust Slotted Fields)
     </h4>
 
     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; margin-bottom: 1.5rem;">
@@ -117,6 +117,55 @@
             <div style="font-family: var(--font-mono); font-size: 0.9rem; color: var(--parchment);">{{ $item->serial_number ?? '-' }}</div>
         </div>
     </div>
+
+    @php
+        $stdKeys = ['id', 'id_warehouse', 'name', 'sku', 'category', 'quantity', 'price', 'unit', 'supplier', 'location', 'min_stock', 'weight_kg', 'volume_cbm', 'description', 'batch_number', 'received_at', 'expiry_date', 'warranty_months', 'serial_number'];
+        $customAttrs = [];
+        foreach((array)$item as $key => $val) {
+            if (!in_array($key, $stdKeys, true) && $val !== null && $val !== '') {
+                $cdef = isset($customFieldDefs) ? $customFieldDefs->firstWhere('name', $key) : null;
+                $label = $cdef->label ?? ucwords(str_replace(['_', '-'], ' ', $key));
+                $type = $cdef->type ?? (is_bool($val) ? 'boolean' : (is_numeric($val) ? 'number' : (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$val) ? 'date' : 'text')));
+                
+                $displayVal = $val;
+                if ($type === 'boolean' || is_bool($val)) {
+                    $displayVal = filter_var($val, FILTER_VALIDATE_BOOLEAN) ? 'True (Ya)' : 'False (Tidak)';
+                } elseif ($type === 'date' && !empty($val)) {
+                    $displayVal = date('d M Y', strtotime($val));
+                } elseif ($type === 'number' && is_numeric($val)) {
+                    $displayVal = is_float($val) || str_contains((string)$val, '.') ? number_format((float)$val, 2, ',', '.') : number_format((int)$val, 0, ',', '.');
+                }
+
+                $customAttrs[] = [
+                    'label' => $label,
+                    'value' => $displayVal,
+                    'type' => strtoupper($type),
+                ];
+            }
+        }
+    @endphp
+
+    @if(!empty($customAttrs))
+        <h4 style="font-family: var(--font-heading); font-size: 0.95rem; color: #6366f1; margin-top: 2rem; margin-bottom: 1rem; padding-bottom: 0.4rem; border-bottom: 1px dashed #c7d2fe; display: flex; align-items: center; gap: 0.5rem;">
+            <span>✨</span> Atribut Custom Dinamis (Dynamic Custom Fields)
+        </h4>
+
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-bottom: 1.5rem; background: #f8fafc; padding: 1.25rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+            @foreach($customAttrs as $attr)
+                <div>
+                    <div style="font-size: 0.75rem; color: #64748b; font-weight: 600; text-transform: uppercase; display: flex; align-items: center; gap: 0.4rem;">
+                        <span>{{ $attr['label'] }}</span>
+                        <span style="font-size: 0.65rem; background: #e2e8f0; color: #475569; padding: 0.1rem 0.35rem; border-radius: 3px; font-weight: 500;">{{ $attr['type'] }}</span>
+                    </div>
+                    <div style="font-size: 0.95rem; font-weight: 600; color: #1e293b; margin-top: 0.25rem;">
+                        <span style="background: #ffffff; border: 1px solid #cbd5e1; padding: 0.25rem 0.6rem; border-radius: 6px; display: inline-block;">
+                            {{ $attr['value'] }}
+                        </span>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    @endif
 
     @if (!empty($item->description))
         <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">

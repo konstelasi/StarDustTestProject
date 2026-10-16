@@ -101,7 +101,7 @@
         </div>
 
         <div style="font-size: 1rem; font-weight: 600; color: var(--text-main); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);">
-            2. Atribut Tambahan Opsional
+            2. Atribut Opsional & System
         </div>
 
         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; margin-bottom: 2rem;">
@@ -136,6 +136,107 @@
             </div>
         </div>
 
+        @if(isset($customFieldDefs) && $customFieldDefs->isNotEmpty())
+            <div style="font-size: 1rem; font-weight: 600; color: var(--text-main); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);">
+                3. Atribut Custom Terdefinisi (Custom Field Definitions)
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; margin-bottom: 2rem; background: #f8fafc; padding: 1.25rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                @foreach($customFieldDefs as $cdef)
+                    @php
+                        $valCurrent = $item->{$cdef->name} ?? old('custom_defined.' . $cdef->name, '');
+                    @endphp
+                    <div>
+                        <label style="display: block; font-size: 0.85rem; color: var(--text-main); font-weight: 600; margin-bottom: 0.4rem;" for="cdef_{{ $cdef->name }}">
+                            {{ $cdef->label }}
+                            @if($cdef->is_required) <span style="color: #ef4444;">*</span> @endif
+                            <span style="font-size: 0.75rem; color: #64748b; font-weight: 400;">({{ strtoupper($cdef->type) }})</span>
+                        </label>
+
+                        @if($cdef->type === 'select')
+                            @php
+                                $opts = array_filter(array_map('trim', explode(',', $cdef->options ?? '')));
+                            @endphp
+                            <select name="custom_defined[{{ $cdef->name }}]" id="cdef_{{ $cdef->name }}" class="form-control" style="width: 100%;" {{ $cdef->is_required ? 'required' : '' }}>
+                                <option value="">-- Pilih {{ $cdef->label }} --</option>
+                                @foreach($opts as $opt)
+                                    <option value="{{ $opt }}" {{ $valCurrent == $opt ? 'selected' : '' }}>{{ $opt }}</option>
+                                @endforeach
+                            </select>
+                        @elseif($cdef->type === 'number')
+                            <input type="number" step="any" name="custom_defined[{{ $cdef->name }}]" id="cdef_{{ $cdef->name }}" class="form-control" value="{{ $valCurrent }}" placeholder="Masukkan angka..." style="width: 100%;" {{ $cdef->is_required ? 'required' : '' }}>
+                        @elseif($cdef->type === 'date')
+                            <input type="date" name="custom_defined[{{ $cdef->name }}]" id="cdef_{{ $cdef->name }}" class="form-control" value="{{ !empty($valCurrent) ? date('Y-m-d', strtotime($valCurrent)) : '' }}" style="width: 100%;" {{ $cdef->is_required ? 'required' : '' }}>
+                        @else
+                            <input type="text" name="custom_defined[{{ $cdef->name }}]" id="cdef_{{ $cdef->name }}" class="form-control" value="{{ $valCurrent }}" placeholder="Masukkan nilai teks..." style="width: 100%;" {{ $cdef->is_required ? 'required' : '' }}>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
+        @endif
+
+        <div style="font-size: 1rem; font-weight: 600; color: var(--text-main); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+            <span>{{ isset($customFieldDefs) && $customFieldDefs->isNotEmpty() ? '4' : '3' }}. Atribut Custom Dinamis Bebas (Key - Tipe Data - Value)</span>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="addCustomRow()" id="btn-add-custom-row">+ Tambah Field Custom</button>
+        </div>
+
+        <p style="font-size: 0.825rem; color: var(--text-muted); margin-bottom: 1rem;">
+            Tambahkan atau ubah field custom baru secara bebas tanpa batas untuk barang ini (misal: Warna, Ukuran, IMEI, Voltase, Brand) dengan tipe data yang sesuai.
+        </p>
+
+        @php
+            $standardKeys = ['id', 'id_warehouse', 'name', 'sku', 'category', 'quantity', 'price', 'unit', 'supplier', 'location', 'min_stock', 'weight_kg', 'volume_cbm', 'description', 'batch_number', 'received_at', 'expiry_date', 'warranty_months', 'serial_number'];
+            if (isset($customFieldDefs)) {
+                $standardKeys = array_merge($standardKeys, $customFieldDefs->pluck('name')->toArray());
+            }
+
+            $extraCustomFields = [];
+            foreach((array)$item as $k => $v) {
+                if (!in_array($k, $standardKeys, true) && $v !== null && $v !== '') {
+                    $detectedType = 'text';
+                    if (is_bool($v) || $v === 'true' || $v === 'false') {
+                        $detectedType = 'boolean';
+                    } elseif (is_numeric($v)) {
+                        $detectedType = 'number';
+                    } elseif (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$v)) {
+                        $detectedType = 'date';
+                    }
+                    $extraCustomFields[$k] = ['val' => $v, 'type' => $detectedType];
+                }
+            }
+        @endphp
+
+        <div id="custom-fields-container" style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 2rem;">
+            @foreach($extraCustomFields as $ekey => $einfo)
+                @php
+                    $eval = $einfo['val'];
+                    $etype = $einfo['type'];
+                @endphp
+                <div style="display: flex; gap: 0.75rem; align-items: center; background: #f8fafc; padding: 0.6rem 0.8rem; border-radius: 6px; border: 1px solid #e2e8f0;">
+                    <input type="text" name="custom_keys[]" class="form-control" value="{{ $ekey }}" placeholder="Nama Atribut" style="flex: 1;" required>
+                    <select name="custom_types[]" class="form-control type-select" style="width: 140px; cursor: pointer;" onchange="updateCustomValInput(this)">
+                        <option value="text" {{ $etype === 'text' ? 'selected' : '' }}>Teks (Text)</option>
+                        <option value="number" {{ $etype === 'number' ? 'selected' : '' }}>Angka (Number)</option>
+                        <option value="date" {{ $etype === 'date' ? 'selected' : '' }}>Tanggal (Date)</option>
+                        <option value="boolean" {{ $etype === 'boolean' ? 'selected' : '' }}>Boolean</option>
+                    </select>
+                    <span style="color: #94a3b8; font-weight: bold;">:</span>
+                    @if($etype === 'boolean')
+                        <select name="custom_vals[]" class="form-control val-input" style="flex: 1.5;" required>
+                            <option value="1" {{ $eval == '1' || $eval == 'true' || $eval === true ? 'selected' : '' }}>True (Ya / Aktif)</option>
+                            <option value="0" {{ $eval == '0' || $eval == 'false' || $eval === false ? 'selected' : '' }}>False (Tidak / Non-aktif)</option>
+                        </select>
+                    @elseif($etype === 'number')
+                        <input type="number" step="any" name="custom_vals[]" class="form-control val-input" value="{{ $eval }}" placeholder="Nilai Angka" style="flex: 1.5;" required>
+                    @elseif($etype === 'date')
+                        <input type="date" name="custom_vals[]" class="form-control val-input" value="{{ date('Y-m-d', strtotime($eval)) }}" style="flex: 1.5;" required>
+                    @else
+                        <input type="text" name="custom_vals[]" class="form-control val-input" value="{{ $eval }}" placeholder="Nilai Atribut" style="flex: 1.5;" required>
+                    @endif
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="this.parentElement.remove()" style="color: #ef4444; border-color: #fca5a5; padding: 0.4rem 0.6rem;">&times;</button>
+                </div>
+            @endforeach
+        </div>
+
         <div style="display: flex; gap: 1rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--border-color);">
             <a href="{{ route('inventory.show', ['inventory' => $item->id, 'warehouse' => $warehouseId]) }}" class="btn btn-secondary">Batal</a>
             <button type="submit" class="btn btn-primary" id="btn-submit-update">
@@ -144,5 +245,79 @@
         </div>
     </form>
 </div>
+
+<script>
+function addCustomRow(key = '', val = '', type = 'text') {
+    const container = document.getElementById('custom-fields-container');
+    const row = document.createElement('div');
+    row.style.cssText = 'display: flex; gap: 0.75rem; align-items: center; background: #f8fafc; padding: 0.6rem 0.8rem; border-radius: 6px; border: 1px solid #e2e8f0;';
+
+    let valInputHtml = `<input type="text" name="custom_vals[]" class="form-control val-input" value="${val}" placeholder="Nilai Atribut" style="flex: 1.5;" required>`;
+    if (type === 'number') {
+        valInputHtml = `<input type="number" step="any" name="custom_vals[]" class="form-control val-input" value="${val}" placeholder="Nilai Angka" style="flex: 1.5;" required>`;
+    } else if (type === 'date') {
+        valInputHtml = `<input type="date" name="custom_vals[]" class="form-control val-input" value="${val}" style="flex: 1.5;" required>`;
+    } else if (type === 'boolean') {
+        valInputHtml = `
+            <select name="custom_vals[]" class="form-control val-input" style="flex: 1.5;" required>
+                <option value="1" ${val == '1' || val == 'true' || val === true ? 'selected' : ''}>True (Ya / Aktif)</option>
+                <option value="0" ${val == '0' || val == 'false' || val === false ? 'selected' : ''}>False (Tidak / Non-aktif)</option>
+            </select>
+        `;
+    }
+
+    row.innerHTML = `
+        <input type="text" name="custom_keys[]" class="form-control" value="${key}" placeholder="Nama Atribut (e.g. Warna, Garansi)" style="flex: 1;" required>
+        <select name="custom_types[]" class="form-control type-select" style="width: 140px; cursor: pointer;" onchange="updateCustomValInput(this)">
+            <option value="text" ${type === 'text' ? 'selected' : ''}>Teks (Text)</option>
+            <option value="number" ${type === 'number' ? 'selected' : ''}>Angka (Number)</option>
+            <option value="date" ${type === 'date' ? 'selected' : ''}>Tanggal (Date)</option>
+            <option value="boolean" ${type === 'boolean' ? 'selected' : ''}>Boolean</option>
+        </select>
+        <span style="color: #94a3b8; font-weight: bold;">:</span>
+        ${valInputHtml}
+        <button type="button" class="btn btn-secondary btn-sm" onclick="this.parentElement.remove()" style="color: #ef4444; border-color: #fca5a5; padding: 0.4rem 0.6rem;">&times;</button>
+    `;
+    container.appendChild(row);
+}
+
+function updateCustomValInput(typeSelect) {
+    const row = typeSelect.parentElement;
+    const type = typeSelect.value;
+    const oldValInput = row.querySelector('.val-input');
+    const currentVal = oldValInput ? oldValInput.value : '';
+
+    let newValInput;
+    if (type === 'number') {
+        newValInput = document.createElement('input');
+        newValInput.type = 'number';
+        newValInput.step = 'any';
+        newValInput.placeholder = 'Nilai Angka';
+    } else if (type === 'date') {
+        newValInput = document.createElement('input');
+        newValInput.type = 'date';
+    } else if (type === 'boolean') {
+        newValInput = document.createElement('select');
+        newValInput.innerHTML = `
+            <option value="1">True (Ya / Aktif)</option>
+            <option value="0">False (Tidak / Non-aktif)</option>
+        `;
+    } else {
+        newValInput = document.createElement('input');
+        newValInput.type = 'text';
+        newValInput.placeholder = 'Nilai Atribut';
+    }
+
+    newValInput.name = 'custom_vals[]';
+    newValInput.className = 'form-control val-input';
+    newValInput.style.flex = '1.5';
+    newValInput.required = true;
+    if (type !== 'boolean' && currentVal) {
+        newValInput.value = currentVal;
+    }
+
+    oldValInput.replaceWith(newValInput);
+}
+</script>
 @endsection
 
