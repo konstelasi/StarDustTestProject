@@ -32,7 +32,7 @@ class WarehouseTest extends TestCase
 
     public function test_admin_can_access_create_warehouse_page(): void
     {
-        $admin = User::where('role', 'admin')->first();
+        $admin = User::whereIn('role', ['admin_platform', 'admin'])->first();
         $response = $this->actingAs($admin)->get('/warehouses/create');
 
         $response->assertStatus(200);
@@ -41,7 +41,7 @@ class WarehouseTest extends TestCase
 
     public function test_admin_can_create_new_warehouse_via_stardust(): void
     {
-        $admin = User::where('role', 'admin')->first();
+        $admin = User::whereIn('role', ['admin_platform', 'admin'])->first();
 
         $payload = [
             'name' => 'Gudang Hub Semarang',
@@ -72,7 +72,7 @@ class WarehouseTest extends TestCase
 
     public function test_staff_cannot_access_create_warehouse_page(): void
     {
-        $staff = User::where('role', 'staff')->first();
+        $staff = User::whereIn('role', ['staff_gudang', 'staff'])->first();
         $response = $this->actingAs($staff)->get('/warehouses/create');
 
         $response->assertStatus(403);
@@ -80,7 +80,7 @@ class WarehouseTest extends TestCase
 
     public function test_staff_cannot_store_new_warehouse(): void
     {
-        $staff = User::where('role', 'staff')->first();
+        $staff = User::whereIn('role', ['staff_gudang', 'staff'])->first();
 
         $payload = [
             'name' => 'Gudang Unauthorized',

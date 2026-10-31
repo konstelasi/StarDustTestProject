@@ -19,8 +19,19 @@ class UserSeeder extends Seeder
             [
                 'name' => 'System Administrator',
                 'password' => Hash::make('password'),
-                'role' => 'admin',
+                'role' => User::ROLE_ADMIN_PLATFORM,
                 'id_warehouse' => null,
+            ]
+        );
+
+        User::updateOrCreate(
+            ['email' => 'admingudang@stardust.com'],
+            [
+                'name' => 'Budi Hendra (Admin Gudang)',
+                'password' => Hash::make('password'),
+                'role' => User::ROLE_ADMIN_GUDANG,
+                'id_warehouse' => 1,
+                'company_id' => (int) config('stardust.tenant_id', 1),
             ]
         );
 
@@ -28,26 +39,31 @@ class UserSeeder extends Seeder
             [
                 'name' => 'Ahmad Rozak',
                 'email' => 'staff@stardust.com',
+                'role' => User::ROLE_STAFF_GUDANG,
                 'id_warehouse' => 1,
             ],
             [
                 'name' => 'Rizky Haikal',
                 'email' => 'staff2@stardust.com',
+                'role' => User::ROLE_STAFF_GUDANG,
                 'id_warehouse' => 2,
             ],
             [
                 'name' => 'Farrel Daffa',
                 'email' => 'staff3@stardust.com',
+                'role' => User::ROLE_STAFF_GUDANG,
                 'id_warehouse' => 1,
             ],
             [
                 'name' => 'Putra Aditama',
                 'email' => 'staff4@stardust.com',
+                'role' => User::ROLE_STAFF_GUDANG,
                 'id_warehouse' => 2,
             ],
             [
                 'name' => 'Fayza Dzakiyyah',
                 'email' => 'staff5@stardust.com',
+                'role' => User::ROLE_STAFF_GUDANG,
                 'id_warehouse' => 2,
             ],
         ];
@@ -58,8 +74,9 @@ class UserSeeder extends Seeder
                 [
                     'name' => $s['name'],
                     'password' => Hash::make('password'),
-                    'role' => 'staff',
+                    'role' => $s['role'] ?? User::ROLE_STAFF_GUDANG,
                     'id_warehouse' => $s['id_warehouse'],
+                    'company_id' => (int) config('stardust.tenant_id', 1),
                 ]
             );
 

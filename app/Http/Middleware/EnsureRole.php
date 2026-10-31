@@ -22,7 +22,39 @@ class EnsureRole
 
         $user = Auth::user();
 
-        if (! in_array($user->role, $roles, true)) {
+        $allowed = false;
+        foreach ($roles as $role) {
+            if ($role === 'admin_platform' && $user->isAdminPlatform()) {
+                $allowed = true;
+                break;
+            }
+            if ($role === 'admin_perusahaan' && $user->isAdminPerusahaan()) {
+                $allowed = true;
+                break;
+            }
+            if ($role === 'admin_gudang' && $user->isAdminGudang()) {
+                $allowed = true;
+                break;
+            }
+            if ($role === 'staff_gudang' && $user->isStaffGudang()) {
+                $allowed = true;
+                break;
+            }
+            if ($role === 'admin' && $user->isAdmin()) {
+                $allowed = true;
+                break;
+            }
+            if ($role === 'staff' && $user->isStaff()) {
+                $allowed = true;
+                break;
+            }
+            if ($user->role === $role) {
+                $allowed = true;
+                break;
+            }
+        }
+
+        if (! $allowed) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Forbidden. Anda tidak memiliki izin untuk fitur ini.'], 403);
             }

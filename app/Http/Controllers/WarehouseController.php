@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\Tenant;
 use Illuminate\Http\Request;
 use StarDust\StarDust;
 use StarDust\Write\EntryPayload;
@@ -26,7 +27,7 @@ class WarehouseController extends Controller
             'manager' => 'required|string|max:255',
         ]);
 
-        $tenantId = (int) config('stardust.tenant_id', 1);
+        $tenantId = Tenant::id();
         $models = $this->stardust->listModels($tenantId);
         $gudangModel = collect($models)->firstWhere('name', config('stardust.warehouse_model_name', 'gudang'));
 

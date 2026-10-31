@@ -4,7 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Database\Seeders\UserSeeder;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Password;
 use Tests\TestCase;
 
 class AuthAndModesTest extends TestCase
@@ -117,42 +121,57 @@ class AuthAndModesTest extends TestCase
         $this->assertEquals('testing', session('app_mode'));
     }
 
-    public function test_login_page_contains_register_link(): void
+    public function test_login_page_does_not_contain_public_register_link(): void
     {
         $response = $this->get('/login');
 
         $response->assertStatus(200);
-        $response->assertSee('Daftar Akun Baru');
+        $response->assertDontSee('id="link-register"', false);
     }
 
-    public function test_register_page_renders_with_roles(): void
+    public function test_admin_can_access_register_page_and_see_roles(): void
     {
-        $response = $this->get('/register');
+        $admin = User::whereIn('role', ['admin_platform', 'admin'])->first();
+
+        $response = $this->actingAs($admin)->get('/register');
 
         $response->assertStatus(200);
         $response->assertSee('Peran Pengguna (Role)');
         $response->assertSee('Staff Gudang (Staff)');
-        $response->assertSee('Administrator System (Admin)');
+        $response->assertSee('Administrator Platform');
+        $response->assertSee('Admin Gudang');
     }
 
-    public function test_guest_can_register_new_user_with_role_and_warehouse(): void
+    public function test_guest_or_staff_cannot_access_register_page(): void
     {
-        $response = $this->post('/register', [
+        $guestResponse = $this->get('/register');
+        $guestResponse->assertRedirect('/login');
+
+        $staff = User::whereIn('role', ['staff_gudang', 'staff'])->first();
+        if ($staff) {
+            $staffResponse = $this->actingAs($staff)->get('/register');
+            $staffResponse->assertStatus(403);
+        }
+    }
+
+    public function test_admin_can_register_new_user_with_role_and_warehouse(): void
+    {
+        $admin = User::whereIn('role', ['admin_platform', 'admin'])->first();
+
+        $response = $this->actingAs($admin)->post('/register', [
             'name' => 'Bambang Subagyo',
             'email' => 'bambang@stardust.com',
-            'role' => 'staff',
+            'role' => 'admin_gudang',
             'id_warehouse' => 1,
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
         ]);
 
-        $response->assertRedirect('/login');
+        $response->assertRedirect(route('staff.index'));
         $response->assertSessionHas('success');
 
         $this->assertDatabaseHas('users', [
             'name' => 'Bambang Subagyo',
             'email' => 'bambang@stardust.com',
-            'role' => 'staff',
+            'role' => 'admin_gudang',
             'id_warehouse' => 1,
         ]);
 
@@ -163,24 +182,24 @@ class AuthAndModesTest extends TestCase
         ]);
     }
 
-    public function test_guest_can_register_new_staff_without_warehouse_optional(): void
+    public function test_admin_can_register_new_staff_without_warehouse_optional(): void
     {
-        $response = $this->post('/register', [
+        $admin = User::whereIn('role', ['admin_platform', 'admin'])->first();
+
+        $response = $this->actingAs($admin)->post('/register', [
             'name' => 'Siti Aminah',
             'email' => 'siti@stardust.com',
-            'role' => 'staff',
+            'role' => 'staff_gudang',
             'id_warehouse' => '',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
         ]);
 
-        $response->assertRedirect('/login');
+        $response->assertRedirect(route('staff.index'));
         $response->assertSessionHas('success');
 
         $this->assertDatabaseHas('users', [
             'name' => 'Siti Aminah',
             'email' => 'siti@stardust.com',
-            'role' => 'staff',
+            'role' => 'staff_gudang',
             'id_warehouse' => null,
         ]);
 
@@ -196,7 +215,7 @@ class AuthAndModesTest extends TestCase
             'name' => 'Staff Tanpa Gudang',
             'email' => 'tanpagudang@stardust.com',
             'password' => bcrypt('password'),
-            'role' => 'staff',
+            'role' => 'staff_gudang',
             'id_warehouse' => null,
         ]);
 
@@ -208,5 +227,54 @@ class AuthAndModesTest extends TestCase
         $response->assertSee('Anda Belum Memiliki Gudang Penugasan');
         $response->assertSee('Belum Memiliki Gudang');
         $response->assertDontSee('Gudang Utama Jakarta');
+    }
+
+    public function test_admin_gudang_can_manage_staff_but_cannot_register_or_toggle_app_mode(): void
+    {
+        $adminGudang = User::where('role', 'admin_gudang')->first();
+        $this->actingAs($adminGudang);
+
+        // Can access staff index
+        $staffResponse = $this->get('/staff');
+        $staffResponse->assertStatus(200);
+
+        // Cannot access register
+        $registerResponse = $this->get('/register');
+        $registerResponse->assertStatus(403);
+
+        // Cannot toggle app mode
+        $appModeResponse = $this->post('/app-mode/toggle');
+        $appModeResponse->assertStatus(403);
+    }
+
+    public function test_register_sends_password_setup_email_without_password_field(): void
+    {
+        Notification::fake();
+        $admin = User::where('role', 'admin_platform')->first();
+
+        $this->actingAs($admin)->post('/register', [
+            'name' => 'User Tanpa Password',
+            'email' => 'tanpapass@stardust.com',
+            'role' => 'staff_gudang',
+        ])->assertRedirect(route('staff.index'));
+
+        $user = User::where('email', 'tanpapass@stardust.com')->first();
+        $this->assertNotNull($user);
+        Notification::assertSentTo($user, ResetPassword::class);
+    }
+
+    public function test_user_can_set_password_via_reset_link(): void
+    {
+        $user = User::factory()->create(['email' => 'reset@stardust.com']);
+        $token = Password::createToken($user);
+
+        $this->post('/reset-password', [
+            'token' => $token,
+            'email' => 'reset@stardust.com',
+            'password' => 'passwordBaru1',
+            'password_confirmation' => 'passwordBaru1',
+        ])->assertRedirect(route('login'));
+
+        $this->assertTrue(Hash::check('passwordBaru1', $user->fresh()->password));
     }
 }

@@ -3,25 +3,28 @@
 @section('title', 'Akses Staff Gudang - StarDust')
 
 @section('content')
-<div class="page-header">
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
     <div>
-        <h1 class="page-title">Akses Staff Gudang</h1>
-        <p class="page-subtitle">Kelola penugasan staff yang berhak mengelola setiap gudang secara langsung</p>
+        <h1 class="page-title">Akses Staff & Admin Gudang</h1>
+        <p class="page-subtitle">Kelola penugasan pengguna yang berhak mengelola setiap gudang secara langsung</p>
     </div>
+    @if (Auth::user()?->isAdminPlatform())
+        <a href="{{ route('register') }}" class="btn btn-primary btn-sm" id="btn-add-staff-top">+ Registrasi User / Staff Baru</a>
+    @endif
 </div>
 
 @if (isset($unassignedStaff) && $unassignedStaff->isNotEmpty())
     <div class="panel" style="margin-bottom: 1.5rem; border-left: 4px solid #f59e0b;" id="unassigned-staff-panel">
         <h3 style="margin-top: 0; margin-bottom: 0.5rem; font-size: 1rem; color: #b45309; display: flex; align-items: center; gap: 0.5rem;">
-            <span>⚠️</span> Staff Belum Memiliki Penugasan Gudang ({{ $unassignedStaff->count() }})
+            <span>⚠️</span> Pengguna Belum Memiliki Penugasan Gudang ({{ $unassignedStaff->count() }})
         </h3>
         <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.75rem;">
-            Staff di bawah ini telah terdaftar tetapi belum memiliki gudang penugasan. Pilih nama mereka pada dropdown <strong>Kelola Akses Staff</strong> pada gudang yang sesuai di bawah lalu simpan.
+            Pengguna di bawah ini telah terdaftar tetapi belum memiliki gudang penugasan. Pilih nama mereka pada dropdown <strong>Kelola Akses Staff</strong> pada gudang yang sesuai di bawah lalu simpan.
         </p>
         <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
             @foreach ($unassignedStaff as $us)
                 <span style="background: #fffbeb; color: #b45309; border: 1px solid #fcd34d; padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.85rem; font-weight: 500;">
-                    👤 {{ $us->name }} &lt;{{ $us->email }}&gt;
+                    👤 {{ $us->name }} ({{ $us->role_label }}) &lt;{{ $us->email }}&gt;
                 </span>
             @endforeach
         </div>
@@ -36,7 +39,7 @@
                     <th style="width: 22%;">Nama Gudang</th>
                     <th style="width: 12%;">Kode</th>
                     <th style="width: 16%;">Lokasi</th>
-                    <th>Kelola Akses Staff</th>
+                    <th>Kelola Akses Staff & Admin Gudang</th>
                 </tr>
             </thead>
             <tbody>
@@ -67,9 +70,9 @@
                                         @if(count($selectedNames) === 1)
                                             {{ $selectedNames[0] }}
                                         @elseif(count($selectedNames) > 1)
-                                            {{ count($selectedNames) }} staff ({{ implode(', ', $selectedNames) }})
+                                            {{ count($selectedNames) }} orang ({{ implode(', ', $selectedNames) }})
                                         @else
-                                            -- Pilih Staff --
+                                            -- Pilih Pengguna --
                                         @endif
                                     </span>
                                     <span style="color:#9ca3af; font-size: 0.75rem;">▾</span>
@@ -79,7 +82,7 @@
 
                                     <input
                                         type="text"
-                                        placeholder="Cari staff..."
+                                        placeholder="Cari pengguna..."
                                         class="ms-search"
                                         oninput="msFilter(this)"
                                         style="width:100%; padding: 0.55rem 0.75rem; border:none; border-bottom:1px solid #e2e8f0; outline:none; box-sizing:border-box; font-size: 0.85rem;"
@@ -96,7 +99,7 @@
                                                     {{ in_array($staff->id, $assignedIds) ? 'checked' : '' }}
                                                     style="width:16px; height:16px;"
                                                 >
-                                                {{ $staff->name }}
+                                                {{ $staff->name }} <span style="font-size: 0.75rem; color: #64748b;">({{ $staff->role_label }})</span>
                                             </label>
                                         @empty
                                             <p style="color:#9ca3af; margin:0; padding:0.75rem; font-size:0.85rem;" class="ms-empty">Belum ada staff terdaftar.</p>

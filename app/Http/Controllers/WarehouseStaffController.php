@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use StarDust\Read\EntryQuery;
 use StarDust\StarDust;
 
@@ -16,16 +18,36 @@ class WarehouseStaffController extends Controller
 
     public function index()
     {
+        $authUser = auth()->user();
         $warehouses = $this->getWarehouseList();
-        $staffList = User::where('role', '!=', 'admin')->get();
+
+        if ($authUser && $authUser->isAdminGudang()) {
+            $assignedWhIds = DB::table('warehouse_staff')
+                ->where('user_id', $authUser->id)
+                ->pluck('warehouse_id')
+                ->map(fn ($id) => (int) $id)
+                ->toArray();
+            if (empty($assignedWhIds) && $authUser->id_warehouse) {
+                $assignedWhIds = [(int) $authUser->id_warehouse];
+            }
+            $warehouses = $warehouses->whereIn('id', $assignedWhIds)->values();
+        }
+
+        $staffList = User::whereNotIn('role', ['admin_platform', 'admin'])
+            ->where('company_id', Tenant::id())
+            ->get();
 
         $assignments = DB::table('warehouse_staff')
             ->join('users', 'users.id', '=', 'warehouse_staff.user_id')
+            ->where('users.company_id', Tenant::id())
             ->select('warehouse_staff.warehouse_id', 'users.id as user_id', 'users.name')
             ->get()
             ->groupBy('warehouse_id');
 
-        $usersWithWarehouseCol = User::whereNotNull('id_warehouse')->get()->groupBy('id_warehouse');
+        $usersWithWarehouseCol = User::whereNotNull('id_warehouse')
+            ->where('company_id', Tenant::id())
+            ->get()
+            ->groupBy('id_warehouse');
 
         $allAssignedUserIds = [];
 
@@ -59,9 +81,24 @@ class WarehouseStaffController extends Controller
 
     public function update(Request $request, $warehouseId)
     {
+        $authUser = auth()->user();
+        if ($authUser && $authUser->isAdminGudang()) {
+            $assignedWhIds = DB::table('warehouse_staff')
+                ->where('user_id', $authUser->id)
+                ->pluck('warehouse_id')
+                ->map(fn ($id) => (int) $id)
+                ->toArray();
+            if (empty($assignedWhIds) && $authUser->id_warehouse) {
+                $assignedWhIds = [(int) $authUser->id_warehouse];
+            }
+            if (! $this->getWarehouseList()->contains('id', (int) $warehouseId)) {
+                abort(404, 'Gudang tidak ditemukan pada perusahaan ini.');
+            }
+        }
+
         $request->validate([
             'staff_ids' => 'array',
-            'staff_ids.*' => 'exists:users,id',
+            'staff_ids.*' => [Rule::exists('users', 'id')->where('company_id', Tenant::id())],
         ]);
 
         $staffIds = array_map('intval', $request->input('staff_ids', []));
@@ -81,7 +118,9 @@ class WarehouseStaffController extends Controller
         }
 
         // Sync id_warehouse attribute on User model for consistency
-        $allStaff = User::where('role', '!=', 'admin')->get();
+        $allStaff = User::whereNotIn('role', ['admin_platform', 'admin'])
+            ->where('company_id', Tenant::id())
+            ->get();
         foreach ($allStaff as $st) {
             $firstWh = DB::table('warehouse_staff')->where('user_id', $st->id)->value('warehouse_id');
             $st->update(['id_warehouse' => $firstWh ? (int) $firstWh : null]);
@@ -98,7 +137,7 @@ class WarehouseStaffController extends Controller
      */
     private function getWarehouseList()
     {
-        $tenantId = (int) config('stardust.tenant_id', 1);
+        $tenantId = Tenant::id();
         $models = $this->stardust->listModels($tenantId);
         $gudangModel = collect($models)->firstWhere('name', config('stardust.warehouse_model_name', 'gudang'));
 

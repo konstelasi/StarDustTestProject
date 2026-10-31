@@ -30,7 +30,7 @@ class InventoryTest extends TestCase
         $this->artisan('inventory:setup', ['--seed' => true]);
         $this->seed(UserSeeder::class);
 
-        $admin = User::where('role', 'admin')->first();
+        $admin = User::whereIn('role', ['admin_platform', 'admin'])->first();
         $this->actingAs($admin);
     }
 

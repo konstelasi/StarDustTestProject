@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Support\Tenant;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -20,7 +21,7 @@ class AppServiceProvider extends ServiceProvider
         // Feed the warehouse-context bar in layouts.app with the real
         // 'gudang' entries from the (single-tenant) StarDust engine.
         View::composer('layouts.app', function ($view) {
-            $tenantId = (int) config('stardust.tenant_id', 1);
+            $tenantId = Tenant::id();
 
             try {
                 $stardust = app(StarDust::class);
@@ -46,7 +47,7 @@ class AppServiceProvider extends ServiceProvider
             $authUser = auth()->user();
             $staffWarehouseIds = [];
 
-            if ($authUser && ! $authUser->isAdmin()) {
+            if ($authUser && $authUser->isWarehouseScoped()) {
                 $staffWarehouseIds = DB::table('warehouse_staff')
                     ->where('user_id', $authUser->id)
                     ->pluck('warehouse_id')
@@ -65,7 +66,7 @@ class AppServiceProvider extends ServiceProvider
                 ? $warehouses->firstWhere('id', (int) $currentId)
                 : null;
 
-            if ($authUser && ! $authUser->isAdmin()) {
+            if ($authUser && $authUser->isWarehouseScoped()) {
                 if (! $current || ! $staffWarehouses->pluck('id')->contains($current->id)) {
                     $current = $staffWarehouses->first();
                 }
@@ -73,7 +74,8 @@ class AppServiceProvider extends ServiceProvider
 
             $view->with('navStaffWarehouses', $staffWarehouses);
             $view->with('navWarehouses', $warehouses);
-            $view->with('navCurrentWarehouse', $authUser && ! $authUser->isAdmin() ? $current : ($current ?? $warehouses->first()));
+            $view->with('navCurrentWarehouse', $authUser && $authUser->isWarehouseScoped() ? $current : ($current ?? $warehouses->first()));
+            $view->with('navCompany', $authUser ? Tenant::company() : null);
         });
     }
 }

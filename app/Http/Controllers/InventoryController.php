@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CustomFieldDefinition;
 use App\Support\SkuGenerator;
+use App\Support\Tenant;
 use Faker\Factory as FakerFactory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use StarDust\Exception\PayloadTooLargeException;
 use StarDust\Filter\Ast\AndNode;
 use StarDust\Filter\Ast\LeafNode;
@@ -14,6 +17,7 @@ use StarDust\Read\Cursor;
 use StarDust\Read\EntryQuery;
 use StarDust\Read\SortDirection;
 use StarDust\Read\SortSpec;
+use StarDust\Slot\SlotReserver;
 use StarDust\StarDust;
 use StarDust\Write\BulkIngestOptions;
 use StarDust\Write\EntryPayload;
@@ -24,7 +28,7 @@ class InventoryController extends Controller
 
     private function tenantId(): int
     {
-        return (int) config('stardust.tenant_id', 1);
+        return Tenant::id();
     }
 
     private function modelId(int $tenantId, string $modelName): int
@@ -62,7 +66,7 @@ class InventoryController extends Controller
 
         $user = Auth::user();
 
-        if ($user && $user->isStaff()) {
+        if ($user && $user->isWarehouseScoped()) {
             $staffWarehouseIds = DB::table('warehouse_staff')
                 ->where('user_id', $user->id)
                 ->pluck('warehouse_id')
@@ -114,7 +118,9 @@ class InventoryController extends Controller
         [$tenantId, $modelId, $warehouseId, $activeWarehouse, $warehouses] = $this->resolveContext($request);
 
         $user = Auth::user();
-        if ($user && $user->isStaff() && $activeWarehouse === null) {
+        $customFieldDefs = $this->getScopedCustomFieldDefinitions();
+
+        if ($user && $user->isWarehouseScoped() && $activeWarehouse === null) {
             return view('inventory.index', [
                 'items' => collect(),
                 'nextCursor' => null,
@@ -134,6 +140,7 @@ class InventoryController extends Controller
                 'activeWarehouse' => null,
                 'warehouses' => collect(),
                 'warehouseId' => null,
+                'customFieldDefs' => $customFieldDefs,
             ]);
         }
 
@@ -160,7 +167,16 @@ class InventoryController extends Controller
         $sortDirInput = strtolower((string) $request->input('dir', 'asc'));
         $sortDirection = $sortDirInput === 'desc' ? SortDirection::Desc : SortDirection::Asc;
 
-        $filterableFields = ['name', 'sku', 'category', 'quantity', 'price', 'location', 'supplier', 'min_stock', 'weight_kg', 'volume_cbm', 'received_at', 'expiry_date', 'id_warehouse'];
+        $customFieldNames = $customFieldDefs->pluck('name')->toArray();
+        $filterableFields = array_merge([
+            'name', 'sku', 'category', 'quantity', 'price', 'location', 'supplier',
+            'min_stock', 'weight_kg', 'volume_cbm', 'received_at', 'expiry_date',
+            'id_warehouse', 'batch_number', 'serial_number', 'warranty_months',
+        ], $customFieldNames);
+
+        if (! empty($sortBy) && ! in_array($sortBy, $filterableFields, true)) {
+            $filterableFields[] = Str::slug($sortBy, '_');
+        }
 
         $sortSpec = null;
         if ($sortBy === 'id') {
@@ -275,7 +291,20 @@ class InventoryController extends Controller
             'activeWarehouse' => $activeWarehouse,
             'warehouses' => $warehouses,
             'warehouseId' => $warehouseId,
+            'customFieldDefs' => $customFieldDefs,
         ]);
+    }
+
+    private function getScopedCustomFieldDefinitions()
+    {
+        $user = Auth::user();
+
+        return CustomFieldDefinition::where(function ($query) use ($user) {
+            $query->whereNull('user_id');
+            if ($user && $user->id) {
+                $query->orWhere('user_id', $user->id);
+            }
+        })->get();
     }
 
     /**
@@ -284,8 +313,9 @@ class InventoryController extends Controller
     public function create(Request $request)
     {
         [$tenantId, $modelId, $warehouseId, $activeWarehouse, $warehouses] = $this->resolveContext($request);
+        $customFieldDefs = $this->getScopedCustomFieldDefinitions();
 
-        return view('inventory.create', compact('activeWarehouse', 'warehouses', 'warehouseId'));
+        return view('inventory.create', compact('activeWarehouse', 'warehouses', 'warehouseId', 'customFieldDefs'));
     }
 
     /**
@@ -349,6 +379,44 @@ class InventoryController extends Controller
         $fields = array_filter($validated, fn ($val) => $val !== null && $val !== '');
         $fields['id_warehouse'] = $idWarehouse;
 
+        // Process defined custom fields
+        $customDefs = $this->getScopedCustomFieldDefinitions();
+        if ($request->has('custom_defined')) {
+            $defined = (array) $request->input('custom_defined');
+            foreach ($defined as $keyName => $valStr) {
+                if ($valStr !== null && $valStr !== '') {
+                    $slug = Str::slug($keyName, '_');
+                    $def = $customDefs->first(fn ($d) => $d->name === $slug || Str::slug($d->label, '_') === $slug);
+                    $type = $def ? $def->type : 'text';
+                    $this->ensureStarDustFieldSlot($slug, $type);
+                    $casted = $this->castCustomFieldValue($valStr, $type);
+                    if ($casted !== null) {
+                        $fields[$slug] = $casted;
+                    }
+                }
+            }
+        }
+
+        // Process dynamic key-value pairs with user-selected data types
+        if ($request->has('custom_keys') && $request->has('custom_vals')) {
+            $keys = (array) $request->input('custom_keys');
+            $vals = (array) $request->input('custom_vals');
+            $types = (array) $request->input('custom_types', []);
+            foreach ($keys as $idx => $k) {
+                $keyName = Str::slug(trim((string) $k), '_');
+                $valStr = trim((string) ($vals[$idx] ?? ''));
+                $typeStr = strtolower(trim((string) ($types[$idx] ?? 'text')));
+
+                if (! empty($keyName) && $valStr !== '') {
+                    $this->ensureStarDustFieldSlot($keyName, $typeStr);
+                    $casted = $this->castCustomFieldValue($valStr, $typeStr);
+                    if ($casted !== null) {
+                        $fields[$keyName] = $casted;
+                    }
+                }
+            }
+        }
+
         $payload = new EntryPayload(
             tenantId: $tenantId,
             modelId: $modelId,
@@ -357,8 +425,70 @@ class InventoryController extends Controller
 
         $result = $this->stardust->write($payload);
 
-        return redirect()->route('inventory.index', ['warehouse' => $tenantId])
+        return redirect()->route('inventory.index', ['warehouse' => $warehouseId])
             ->with('success', "Barang '{$validated['name']}' berhasil disimpan ke StarDust Engine! (Entry ID: {$result->entryId})");
+    }
+
+    /**
+     * Daftarkan atribut custom ke schema StarDust dan alokasikan slot indeksnya (i_str_XX, i_int_XX, dll).
+     */
+    private function ensureStarDustFieldSlot(string $fieldName, string $fieldType): void
+    {
+        $slug = Str::slug($fieldName, '_');
+        if (empty($slug)) {
+            return;
+        }
+
+        $tenantId = $this->tenantId();
+        $barangModelId = $this->modelId($tenantId, config('stardust.item_model_name', 'barang'));
+
+        $declaredType = match (strtolower(trim($fieldType))) {
+            'number', 'numeric', 'float', 'double' => 'numeric',
+            'integer', 'int', 'boolean', 'bool' => 'int',
+            'date', 'datetime' => 'datetime',
+            default => 'string',
+        };
+
+        try {
+            $fieldId = $this->stardust->schemaBuilder()->defineField(
+                modelId: $barangModelId,
+                name: $slug,
+                declaredType: $declaredType,
+                isFilterable: true
+            );
+
+            $pdo = $this->stardust->pdo();
+            $reserver = new SlotReserver(
+                $pdo,
+                $this->stardust->config()->clock,
+                $this->stardust->logger()
+            );
+            $reserver->reserve($fieldId);
+        } catch (\Throwable $e) {
+            // Field sudah terdaftar atau slot sudah dialokasikan
+        }
+    }
+
+    /**
+     * Konversi nilai atribut custom sesuai dengan tipe data yang dipilih.
+     */
+    private function castCustomFieldValue(mixed $value, string $type): mixed
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $type = strtolower(trim($type));
+
+        return match ($type) {
+            'number', 'numeric', 'integer', 'float' => is_numeric($value)
+                ? (str_contains((string) $value, '.') ? (float) $value : (int) $value)
+                : (int) $value,
+            'date' => date('Y-m-d', strtotime((string) $value)),
+            'datetime' => date('Y-m-d H:i:s', strtotime((string) $value)),
+            'boolean', 'bool' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
+            default => (string) $value,
+        };
     }
 
     /**
@@ -375,8 +505,9 @@ class InventoryController extends Controller
         }
 
         $item = (object) array_merge(['id' => $entry->id], $entry->fields);
+        $customFieldDefs = $this->getScopedCustomFieldDefinitions();
 
-        return view('inventory.show', compact('item', 'activeWarehouse', 'warehouses', 'warehouseId'));
+        return view('inventory.show', compact('item', 'activeWarehouse', 'warehouses', 'warehouseId', 'customFieldDefs'));
     }
 
     /**
@@ -393,8 +524,9 @@ class InventoryController extends Controller
         }
 
         $item = (object) array_merge(['id' => $entry->id], $entry->fields);
+        $customFieldDefs = $this->getScopedCustomFieldDefinitions();
 
-        return view('inventory.edit', compact('item', 'activeWarehouse', 'warehouses', 'warehouseId'));
+        return view('inventory.edit', compact('item', 'activeWarehouse', 'warehouses', 'warehouseId', 'customFieldDefs'));
     }
 
     /**
@@ -457,9 +589,47 @@ class InventoryController extends Controller
         $fields = array_filter($validated, fn ($val) => $val !== null && $val !== '');
         $fields['id_warehouse'] = $idWarehouse;
 
+        // Process defined custom fields
+        $customDefs = $this->getScopedCustomFieldDefinitions();
+        if ($request->has('custom_defined')) {
+            $defined = (array) $request->input('custom_defined');
+            foreach ($defined as $keyName => $valStr) {
+                if ($valStr !== null && $valStr !== '') {
+                    $slug = Str::slug($keyName, '_');
+                    $def = $customDefs->first(fn ($d) => $d->name === $slug || Str::slug($d->label, '_') === $slug);
+                    $type = $def ? $def->type : 'text';
+                    $this->ensureStarDustFieldSlot($slug, $type);
+                    $casted = $this->castCustomFieldValue($valStr, $type);
+                    if ($casted !== null) {
+                        $fields[$slug] = $casted;
+                    }
+                }
+            }
+        }
+
+        // Process dynamic key-value pairs with user-selected data types
+        if ($request->has('custom_keys') && $request->has('custom_vals')) {
+            $keys = (array) $request->input('custom_keys');
+            $vals = (array) $request->input('custom_vals');
+            $types = (array) $request->input('custom_types', []);
+            foreach ($keys as $idx => $k) {
+                $keyName = Str::slug(trim((string) $k), '_');
+                $valStr = trim((string) ($vals[$idx] ?? ''));
+                $typeStr = strtolower(trim((string) ($types[$idx] ?? 'text')));
+
+                if (! empty($keyName) && $valStr !== '') {
+                    $this->ensureStarDustFieldSlot($keyName, $typeStr);
+                    $casted = $this->castCustomFieldValue($valStr, $typeStr);
+                    if ($casted !== null) {
+                        $fields[$keyName] = $casted;
+                    }
+                }
+            }
+        }
+
         $this->stardust->updateEntry($tenantId, $id, $fields);
 
-        return redirect()->route('inventory.show', ['inventory' => $id, 'warehouse' => $tenantId])
+        return redirect()->route('inventory.show', ['inventory' => $id, 'warehouse' => $warehouseId])
             ->with('success', "Barang '{$validated['name']}' berhasil diperbarui di StarDust Engine!");
     }
 

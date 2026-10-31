@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'StarDust Warehouse & Inventory System')</title>
     <link rel="stylesheet" href="{{ asset('css/inventory.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/konstelasi-bg.css') }}">
 </head>
 <body>
 
@@ -28,12 +29,24 @@
                 <a href="{{ route('inventory.create', ['warehouse' => session('active_warehouse', $navCurrentWarehouse->id ?? null)]) }}" class="nav-link {{ request()->routeIs('inventory.create') ? 'active' : '' }}" id="nav-create-link">
                     Registrasi Barang
                 </a>
-                @if ($authUser && $authUser->isAdmin())
+                @if ($authUser && $authUser->isAdminPlatform())
+                    <a href="{{ route('companies.index') }}" class="nav-link {{ request()->routeIs('companies.*') ? 'active' : '' }}" id="nav-companies-link">
+                        Perusahaan
+                    </a>
+                @endif
+                @if ($authUser && $authUser->isAdminPlatform())
                     <a href="{{ route('warehouses.create') }}" class="nav-link {{ request()->routeIs('warehouses.create') ? 'active' : '' }}" id="nav-create-warehouse-link">
                         Tambah Gudang
                     </a>
+                @endif
+                @if ($authUser && ($authUser->isAdminPlatform() || $authUser->isAdminGudang()))
                     <a href="{{ route('staff.index') }}" class="nav-link {{ request()->routeIs('staff.index') ? 'active' : '' }}" id="nav-staff-index-link">
                         Atur Staff
+                    </a>
+                @endif
+                @if ($authUser && $authUser->isAdminPlatform())
+                    <a href="{{ route('register') }}" class="nav-link {{ request()->routeIs('register') ? 'active' : '' }}" id="nav-register-link">
+                        Tambah Staff / User
                     </a>
                 @endif
             </nav>
@@ -43,8 +56,10 @@
             <div class="sidebar-footer">
                 <div class="user-profile">
                     <div class="user-name">{{ $authUser->name }}</div>
-                    @if ($authUser->isAdmin())
-                        <span class="role-badge role-badge-admin">Admin System</span>
+                    @if ($authUser->isAdminPlatform())
+                        <span class="role-badge role-badge-admin">Admin Platform</span>
+                    @elseif ($authUser->isAdminGudang())
+                        <span class="role-badge role-badge-admin-gudang" style="background:#0284c7;color:#fff;padding:0.25rem 0.5rem;border-radius:4px;font-size:0.75rem;font-weight:600;">Admin Gudang</span>
                     @else
                         <span class="role-badge role-badge-staff">Staff Gudang</span>
                     @endif
@@ -80,10 +95,13 @@
                         Status: Staff Tanpa Penugasan Gudang • Hubungi Administrator untuk Penugasan Gudang
                     @endif
                 </div>
+                @if (!empty($navCompany))
+                    <div class="warehouse-meta">Perusahaan: {{ $navCompany->name }}</div>
+                @endif
             </div>
 
             <div style="display: flex; align-items: center; gap: 1rem;">
-                @if ($authUser && $authUser->isAdmin())
+                @if ($authUser && $authUser->isAdminPlatform())
                     <form action="{{ route('inventory.index') }}" method="GET" class="warehouse-selector-form" id="warehouse-switch-form">
                         <label for="warehouse-select" style="font-size: 0.85rem; color: var(--text-muted);">Pilih Gudang:</label>
                         <select name="warehouse" id="warehouse-select" class="form-control" onchange="this.form.submit()" style="width: 200px;">

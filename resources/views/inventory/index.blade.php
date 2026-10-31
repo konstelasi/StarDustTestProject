@@ -128,8 +128,8 @@
                     <span>{{ $dropdownLabel }}</span>
                     <small style="color: var(--text-muted); font-size: 0.7rem;">▼</small>
                 </summary>
-                <div style="position: absolute; top: 100%; left: 0; z-index: 100; margin-top: 4px; background: #ffffff; border: 1px solid var(--border-color, #cbd5e1); border-radius: 8px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); padding: 0.75rem; min-width: 220px; max-height: 280px; overflow-y: auto;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid #f1f5f9;">
+                <div style="position: absolute; top: 100%; left: 0; z-index: 100; margin-top: 4px; background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); box-shadow: var(--shadow-lg); padding: 0.75rem; min-width: 220px; max-height: 280px; overflow-y: auto;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);">
                         <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted);">Pilih Kategori</span>
                         <button type="submit" class="btn btn-primary btn-sm" style="padding: 2px 10px; font-size: 0.75rem;">Terapkan</button>
                     </div>
@@ -242,6 +242,17 @@
                             <span class="sort-icon">{{ $currentSort === 'supplier' ? ($currentDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
                         </a>
                     </th>
+                    @if(isset($customFieldDefs) && $customFieldDefs->isNotEmpty())
+                        @foreach($customFieldDefs as $cdef)
+                            <th>
+                                <a href="{{ $makeSortUrl($cdef->name) }}" class="sort-header-link {{ $currentSort === $cdef->name ? 'sort-header-active' : '' }}" title="Sort {{ $cdef->label }}">
+                                    {{ $cdef->label }}
+                                    <span class="sort-icon">{{ $currentSort === $cdef->name ? ($currentDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+                                </a>
+                            </th>
+                        @endforeach
+                    @endif
+                    <th>Atribut Custom</th>
                     <th style="text-align: right;">Aksi</th>
                 </tr>
             </thead>
@@ -253,9 +264,9 @@
                             <div style="font-size: 0.725rem; color: var(--text-dim); margin-top: 2px;">Entry #{{ $item->id }}</div>
                         </td>
                         <td>
-                            <div style="font-weight: 500;">{{ $item->name ?? '-' }}</div>
+                            <div style="font-weight: 600; color: #ffffff;">{{ $item->name ?? '-' }}</div>
                             @if(!empty($item->description))
-                                <div style="font-size: 0.775rem; color: var(--text-muted); max-width: 240px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+                                <div style="font-size: 0.775rem; color: var(--text-dim); max-width: 240px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; margin-top: 2px;">
                                     {{ $item->description }}
                                 </div>
                             @endif
@@ -293,25 +304,34 @@
                             <span>Rp {{ number_format((int)($item->price ?? 0), 0, ',', '.') }}</span>
                         </td>
                         <td>
-                            <span style="color: var(--text-muted);">{{ $item->location ?? '-' }}</span>
+                            @php
+                                $loc = $item->location ?? '-';
+                                $locParts = explode('-', $loc, 2);
+                            @endphp
+                            @if(count($locParts) === 2)
+                                <div style="color: #cbd5e1;">{{ trim($locParts[0]) }} -</div>
+                                <div style="font-size: 0.8rem; color: var(--text-dim);">{{ trim($locParts[1]) }}</div>
+                            @else
+                                <span style="color: var(--text-muted);">{{ $loc }}</span>
+                            @endif
                         </td>
                         <td>
-                            <div style="font-size: 0.85rem; color: #a5f3fc; font-family: var(--font-mono);">
+                            <div style="font-size: 0.85rem; color: #38bdf8; font-weight: 600; font-family: 'JetBrains Mono', monospace;">
                                 {{ isset($item->weight_kg) ? number_format((float)$item->weight_kg, 2) . ' kg' : '-' }}
                             </div>
                             @if(isset($item->volume_cbm))
-                                <div style="font-size: 0.75rem; color: var(--text-dim); font-family: var(--font-mono);">
+                                <div style="font-size: 0.75rem; color: var(--text-dim); font-family: 'JetBrains Mono', monospace;">
                                     {{ number_format((float)$item->volume_cbm, 3) }} m³
                                 </div>
                             @endif
                         </td>
                         <td>
                             @if(!empty($item->expiry_date))
-                                <div style="font-size: 0.825rem; color: #fef08a; font-family: var(--font-mono);">
+                                <div style="font-size: 0.825rem; color: #fbbf24; font-family: 'JetBrains Mono', monospace;">
                                     Exp: {{ date('d M Y', strtotime($item->expiry_date)) }}
                                 </div>
                             @elseif(!empty($item->received_at))
-                                <div style="font-size: 0.825rem; color: var(--text-muted); font-family: var(--font-mono);">
+                                <div style="font-size: 0.825rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">
                                     In: {{ date('d M Y', strtotime($item->received_at)) }}
                                 </div>
                             @else
@@ -320,6 +340,63 @@
                         </td>
                         <td>
                             <span style="color: var(--text-muted);">{{ $item->supplier ?? '-' }}</span>
+                        </td>
+                        @if(isset($customFieldDefs) && $customFieldDefs->isNotEmpty())
+                            @foreach($customFieldDefs as $cdef)
+                                <td>
+                                    @php
+                                        $val = $item->{$cdef->name} ?? null;
+                                    @endphp
+                                    @if($val !== null && $val !== '')
+                                        @if($cdef->type === 'boolean')
+                                            <span style="font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; font-weight: 600; background: {{ $val ? '#dcfce7; color: #15803d;' : '#fee2e2; color: #b91c1c;' }}">
+                                                {{ $val ? 'Ya' : 'Tidak' }}
+                                            </span>
+                                        @elseif($cdef->type === 'date')
+                                            <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.825rem; color: #fbbf24;">
+                                                {{ date('d M Y', strtotime($val)) }}
+                                            </span>
+                                        @elseif($cdef->type === 'number')
+                                            <span style="font-family: 'JetBrains Mono', monospace; color: #38bdf8;">
+                                                {{ is_numeric($val) ? number_format($val, str_contains((string)$val, '.') ? 2 : 0, ',', '.') : $val }}
+                                            </span>
+                                        @else
+                                            <span style="color: var(--text-main);">{{ $val }}</span>
+                                        @endif
+                                    @else
+                                        <span style="color: var(--text-dim); font-size: 0.8rem;">-</span>
+                                    @endif
+                                </td>
+                            @endforeach
+                        @endif
+                        <td>
+                            @php
+                                $definedKeys = isset($customFieldDefs) ? $customFieldDefs->pluck('name')->toArray() : [];
+                                $knownKeys = array_merge([
+                                    'id', 'id_warehouse', 'name', 'sku', 'category', 'quantity', 'price', 'unit',
+                                    'supplier', 'location', 'min_stock', 'weight_kg', 'volume_cbm', 'received_at',
+                                    'expiry_date', 'description', 'batch_number', 'warranty_months', 'serial_number'
+                                ], $definedKeys);
+
+                                $extraAttrs = [];
+                                foreach ((array)$item as $k => $v) {
+                                    if (!in_array($k, $knownKeys) && $v !== null && $v !== '') {
+                                        $extraAttrs[$k] = $v;
+                                    }
+                                }
+                            @endphp
+
+                            @if(!empty($extraAttrs))
+                                <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                                    @foreach($extraAttrs as $eKey => $eVal)
+                                        <span style="font-size: 0.725rem; background: #1e293b; color: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-family: var(--font-mono); border: 1px solid #334155;" title="Atribut Custom Dynamic">
+                                            <strong style="color: #f59e0b;">{{ ucwords(str_replace(['_', '-'], ' ', $eKey)) }}:</strong> {{ is_bool($eVal) ? ($eVal ? 'Ya' : 'Tidak') : $eVal }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @else
+                                <span style="color: var(--text-dim); font-size: 0.8rem;">-</span>
+                            @endif
                         </td>
                         <td style="text-align: right;">
                             <div style="display: inline-flex; gap: 0.35rem;">
@@ -343,7 +420,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                        <td colspan="{{ 12 + (isset($customFieldDefs) ? $customFieldDefs->count() : 0) }}" style="text-align: center; padding: 3rem; color: var(--text-muted);">
                             Tidak ada barang inventory yang ditemukan di {{ $activeWarehouse->name ?? 'Gudang' }}.
                         </td>
                     </tr>
