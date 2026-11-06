@@ -33,7 +33,7 @@ class WarehouseStaffController extends Controller
             $warehouses = $warehouses->whereIn('id', $assignedWhIds)->values();
         }
 
-        $staffList = User::whereNotIn('role', ['admin_platform', 'admin'])
+        $staffList = User::whereNotIn('role', ['admin_platform', 'admin', 'admin_perusahaan'])
             ->where('company_id', Tenant::id())
             ->get();
 
@@ -118,7 +118,7 @@ class WarehouseStaffController extends Controller
         }
 
         // Sync id_warehouse attribute on User model for consistency
-        $allStaff = User::whereNotIn('role', ['admin_platform', 'admin'])
+        $allStaff = User::whereNotIn('role', ['admin_platform', 'admin', 'admin_perusahaan'])
             ->where('company_id', Tenant::id())
             ->get();
         foreach ($allStaff as $st) {

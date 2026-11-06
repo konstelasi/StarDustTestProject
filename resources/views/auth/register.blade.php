@@ -33,11 +33,26 @@
         <div class="form-group" style="margin-bottom: 1.25rem;">
             <label for="role" class="form-label" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Peran Pengguna (Role)</label>
             <select id="role" name="role" class="form-control" required style="width: 100%; cursor: pointer;">
-                <option value="staff_gudang" {{ old('role', 'staff_gudang') == 'staff_gudang' || old('role') == 'staff' ? 'selected' : '' }}>Staff Gudang (Staff)</option>
-                <option value="admin_gudang" {{ old('role') == 'admin_gudang' ? 'selected' : '' }}>Admin Gudang</option>
-                <option value="admin_platform" {{ old('role') == 'admin_platform' || old('role') == 'admin' ? 'selected' : '' }}>Administrator Platform (Admin Platform)</option>
+                <option value="staff_gudang" {{ old('role', 'staff_gudang') == 'staff_gudang' || old('role') == 'staff' ? 'selected' : '' }}>Staff Gudang (Operasional)</option>
+                <option value="admin_gudang" {{ old('role') == 'admin_gudang' ? 'selected' : '' }}>Admin Gudang (Kelola Gudang & Stok)</option>
+                <option value="admin_perusahaan" {{ old('role') == 'admin_perusahaan' ? 'selected' : '' }}>Admin Perusahaan (Kelola Perusahaan via company_admins)</option>
+                <option value="admin_platform" {{ old('role') == 'admin_platform' || old('role') == 'admin' ? 'selected' : '' }}>Administrator Platform (Akses Penuh)</option>
             </select>
         </div>
+
+        @if(!empty($companies) && $companies->isNotEmpty())
+            <div class="form-group" style="margin-bottom: 1.25rem;" id="group-company">
+                <label for="company_id" class="form-label" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Perusahaan / Tenant</label>
+                <select id="company_id" name="company_id" class="form-control" style="width: 100%; cursor: pointer;">
+                    @foreach ($companies as $c)
+                        <option value="{{ $c->id }}" {{ old('company_id', \App\Support\Tenant::id()) == $c->id ? 'selected' : '' }}>
+                            {{ $c->name }} ({{ $c->code }})
+                        </option>
+                    @endforeach
+                </select>
+                <small style="color: #64748b; font-size: 0.8rem; display: block; margin-top: 0.25rem;">Untuk Admin Perusahaan, ini adalah perusahaan yang dikelola via relasi pivot <code>company_admins</code>.</small>
+            </div>
+        @endif
 
         <div class="form-group" style="margin-bottom: 1.25rem;">
             <label for="id_warehouse" class="form-label" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Gudang Penugasan (Opsional)</label>

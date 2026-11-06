@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\UserRole;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 
 #[Fillable(['name', 'email', 'password', 'role', 'id_warehouse', 'company_id'])]
 #[Hidden(['password', 'remember_token'])]
@@ -29,24 +31,52 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'role' => UserRole::class,
         ];
     }
 
+    /**
+     * Accessor untuk atribut role dengan dukungan nilai legasi ('admin' dan 'staff').
+     */
+    public function getRoleAttribute($value): ?UserRole
+    {
+        if ($value instanceof UserRole) {
+            return $value;
+        }
+
+        return UserRole::tryFromLegacy($value);
+    }
+
+    /**
+     * Mutator untuk atribut role yang memastikan format enum backing value.
+     */
+    public function setRoleAttribute(UserRole|string|null $value): void
+    {
+        if ($value instanceof UserRole) {
+            $this->attributes['role'] = $value->value;
+        } elseif (is_string($value)) {
+            $parsed = UserRole::tryFromLegacy($value);
+            $this->attributes['role'] = $parsed ? $parsed->value : $value;
+        } else {
+            $this->attributes['role'] = null;
+        }
+    }
+
     // -------------------------------------------------------------------------
-    // Konstanta Role
+    // Konstanta Role (Merujuk ke Backed Enum UserRole)
     // -------------------------------------------------------------------------
 
-    /** Super-admin: akses lintas semua perusahaan & gudang. */
-    public const ROLE_ADMIN_PLATFORM = 'admin_platform';
+    /** Super-admin: akses penuh lintas semua perusahaan & gudang. */
+    public const ROLE_ADMIN_PLATFORM = UserRole::AdminPlatform->value;
 
     /** Admin Perusahaan: mengelola satu atau lebih perusahaan via pivot company_admins. */
-    public const ROLE_ADMIN_PERUSAHAAN = 'admin_perusahaan';
+    public const ROLE_ADMIN_PERUSAHAAN = UserRole::AdminPerusahaan->value;
 
     /** Admin Gudang: mengelola satu atau lebih gudang via pivot warehouse_staff. */
-    public const ROLE_ADMIN_GUDANG = 'admin_gudang';
+    public const ROLE_ADMIN_GUDANG = UserRole::AdminGudang->value;
 
     /** Staf Gudang: operasional harian (stock in/out) pada gudang yang ditugaskan. */
-    public const ROLE_STAFF_GUDANG = 'staff_gudang';
+    public const ROLE_STAFF_GUDANG = UserRole::StaffGudang->value;
 
     // -------------------------------------------------------------------------
     // Role Checks
@@ -55,25 +85,25 @@ class User extends Authenticatable
     /** Admin Platform — akses penuh lintas semua tenant. */
     public function isAdminPlatform(): bool
     {
-        return in_array($this->role, ['admin_platform', 'admin'], true);
+        return $this->role === UserRole::AdminPlatform;
     }
 
-    /** Admin Perusahaan — mengelola perusahaan tertentu. */
+    /** Admin Perusahaan — mengelola perusahaan tertentu via pivot company_admins. */
     public function isAdminPerusahaan(): bool
     {
-        return $this->role === self::ROLE_ADMIN_PERUSAHAAN;
+        return $this->role === UserRole::AdminPerusahaan;
     }
 
     /** Admin Gudang — mengelola gudang tertentu di dalam suatu perusahaan. */
     public function isAdminGudang(): bool
     {
-        return $this->role === self::ROLE_ADMIN_GUDANG;
+        return $this->role === UserRole::AdminGudang;
     }
 
     /** Staf Gudang — akses operasional saja. */
     public function isStaffGudang(): bool
     {
-        return in_array($this->role, ['staff_gudang', 'staff'], true);
+        return $this->role === UserRole::StaffGudang;
     }
 
     /**
@@ -82,15 +112,13 @@ class User extends Authenticatable
      */
     public function isAdmin(): bool
     {
-        return $this->isAdminPlatform()
-            || $this->isAdminPerusahaan()
-            || $this->isAdminGudang();
+        return $this->role?->isAdmin() ?? false;
     }
 
     /** True jika user adalah staf (bukan admin level mana pun). */
     public function isStaff(): bool
     {
-        return $this->isStaffGudang();
+        return $this->role?->isStaff() ?? false;
     }
 
     /**
@@ -99,7 +127,7 @@ class User extends Authenticatable
      */
     public function isWarehouseScoped(): bool
     {
-        return ! $this->isAdminPlatform();
+        return $this->role?->isWarehouseScoped() ?? true;
     }
 
     // -------------------------------------------------------------------------
@@ -108,13 +136,7 @@ class User extends Authenticatable
 
     public function getRoleLabelAttribute(): string
     {
-        return match ($this->role) {
-            'admin_platform', 'admin' => 'Admin Platform',
-            'admin_perusahaan' => 'Admin Perusahaan',
-            'admin_gudang' => 'Admin Gudang',
-            'staff_gudang', 'staff' => 'Staff Gudang',
-            default => ucfirst($this->role),
-        };
+        return $this->role?->label() ?? 'Pengguna';
     }
 
     // -------------------------------------------------------------------------
@@ -221,7 +243,7 @@ class User extends Authenticatable
      */
     public function warehouseIds(): array
     {
-        return \Illuminate\Support\Facades\DB::table('warehouse_staff')
+        return DB::table('warehouse_staff')
             ->where('user_id', $this->id)
             ->pluck('warehouse_id')
             ->map(fn ($id) => (int) $id)

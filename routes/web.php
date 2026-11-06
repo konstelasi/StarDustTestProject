@@ -26,24 +26,28 @@ Route::middleware('auth')->group(function () {
         return redirect()->route('inventory.index');
     });
 
-    // Platform Admin Only Actions (App Mode Toggle, User Registration, Warehouse Creation, Bulk Import)
+    // Platform Admin Only Actions (App Mode Toggle, Warehouse Creation, Bulk Import, Company Creation)
     Route::middleware('role:admin_platform,admin')->group(function () {
         Route::post('/app-mode/toggle', [AuthController::class, 'toggleAppMode'])->name('app-mode.toggle');
-        Route::get('/register', [AuthController::class, 'showRegisterForm'])->name('register');
-        Route::post('/register', [AuthController::class, 'register'])->name('register.post');
 
         Route::get('warehouses/create', [WarehouseController::class, 'create'])->name('warehouses.create');
         Route::post('warehouses', [WarehouseController::class, 'store'])->name('warehouses.store');
 
-        Route::get('companies', [CompanyController::class, 'index'])->name('companies.index');
         Route::post('companies', [CompanyController::class, 'store'])->name('companies.store');
-        Route::post('companies/{company}/select', [CompanyController::class, 'select'])->name('companies.select');
-
         Route::post('inventory/bulk-import', [InventoryController::class, 'bulkImport'])->name('inventory.bulk-import');
     });
 
-    // Admin Actions (Platform Admin & Warehouse Admin: Inventory Delete & Staff Access Management)
-    Route::middleware('role:admin_platform,admin,admin_gudang')->group(function () {
+    // Platform & Company Admin Actions (Viewing Companies, User Registration)
+    Route::middleware('role:admin_platform,admin,admin_perusahaan')->group(function () {
+        Route::get('companies', [CompanyController::class, 'index'])->name('companies.index');
+        Route::post('companies/{company}/select', [CompanyController::class, 'select'])->name('companies.select');
+
+        Route::get('/register', [AuthController::class, 'showRegisterForm'])->name('register');
+        Route::post('/register', [AuthController::class, 'register'])->name('register.post');
+    });
+
+    // Admin Actions (Platform Admin, Company Admin, & Warehouse Admin: Inventory Delete & Staff Access Management)
+    Route::middleware('role:admin_platform,admin,admin_perusahaan,admin_gudang')->group(function () {
         Route::delete('inventory/{inventory}', [InventoryController::class, 'destroy'])->name('inventory.destroy');
 
         Route::get('/staff', [WarehouseStaffController::class, 'index'])->name('staff.index');

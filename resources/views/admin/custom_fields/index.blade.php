@@ -46,7 +46,7 @@
                     <option value="">-- Semua User (Global Scope) --</option>
                     @foreach ($users as $u)
                         <option value="{{ $u->id }}" {{ old('user_id') == $u->id ? 'selected' : '' }}>
-                            👤 {{ $u->name }} ({{ ucfirst($u->role) }})
+                            👤 {{ $u->name }} ({{ $u->role_label }})
                         </option>
                     @endforeach
                 </select>

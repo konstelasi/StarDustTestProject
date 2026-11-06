@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -19,17 +20,32 @@ class UserSeeder extends Seeder
             [
                 'name' => 'System Administrator',
                 'password' => Hash::make('password'),
-                'role' => User::ROLE_ADMIN_PLATFORM,
+                'role' => UserRole::AdminPlatform,
                 'id_warehouse' => null,
             ]
         );
+
+        $adminPerusahaan = User::updateOrCreate(
+            ['email' => 'adminperusahaan@stardust.com'],
+            [
+                'name' => 'Hendro Wijaya (Admin Perusahaan)',
+                'password' => Hash::make('password'),
+                'role' => UserRole::AdminPerusahaan,
+                'id_warehouse' => null,
+                'company_id' => (int) config('stardust.tenant_id', 1),
+            ]
+        );
+
+        $adminPerusahaan->managedCompanies()->syncWithoutDetaching([
+            (int) config('stardust.tenant_id', 1) => ['access_level' => 'owner'],
+        ]);
 
         User::updateOrCreate(
             ['email' => 'admingudang@stardust.com'],
             [
                 'name' => 'Budi Hendra (Admin Gudang)',
                 'password' => Hash::make('password'),
-                'role' => User::ROLE_ADMIN_GUDANG,
+                'role' => UserRole::AdminGudang,
                 'id_warehouse' => 1,
                 'company_id' => (int) config('stardust.tenant_id', 1),
             ]

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\UserRole;
 use App\Models\User;
 use Database\Seeders\UserSeeder;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -276,5 +277,30 @@ class AuthAndModesTest extends TestCase
         ])->assertRedirect(route('login'));
 
         $this->assertTrue(Hash::check('passwordBaru1', $user->fresh()->password));
+    }
+
+    public function test_admin_can_register_admin_perusahaan_and_sync_company_admins(): void
+    {
+        $admin = User::whereIn('role', ['admin_platform', 'admin'])->first();
+
+        $response = $this->actingAs($admin)->post('/register', [
+            'name' => 'Pak Joko Direktur',
+            'email' => 'joko@perusahaan.com',
+            'role' => 'admin_perusahaan',
+            'company_id' => 1,
+        ]);
+
+        $response->assertRedirect(route('staff.index'));
+        $response->assertSessionHas('success');
+
+        $user = User::where('email', 'joko@perusahaan.com')->first();
+        $this->assertNotNull($user);
+        $this->assertTrue($user->isAdminPerusahaan());
+        $this->assertEquals(UserRole::AdminPerusahaan, $user->role);
+
+        $this->assertDatabaseHas('company_admins', [
+            'user_id' => $user->id,
+            'company_id' => 1,
+        ]);
     }
 }

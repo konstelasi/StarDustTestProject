@@ -29,7 +29,7 @@
                 <a href="{{ route('inventory.create', ['warehouse' => session('active_warehouse', $navCurrentWarehouse->id ?? null)]) }}" class="nav-link {{ request()->routeIs('inventory.create') ? 'active' : '' }}" id="nav-create-link">
                     Registrasi Barang
                 </a>
-                @if ($authUser && $authUser->isAdminPlatform())
+                @if ($authUser && ($authUser->isAdminPlatform() || $authUser->isAdminPerusahaan()))
                     <a href="{{ route('companies.index') }}" class="nav-link {{ request()->routeIs('companies.*') ? 'active' : '' }}" id="nav-companies-link">
                         Perusahaan
                     </a>
@@ -39,12 +39,12 @@
                         Tambah Gudang
                     </a>
                 @endif
-                @if ($authUser && ($authUser->isAdminPlatform() || $authUser->isAdminGudang()))
+                @if ($authUser && ($authUser->isAdminPlatform() || $authUser->isAdminPerusahaan() || $authUser->isAdminGudang()))
                     <a href="{{ route('staff.index') }}" class="nav-link {{ request()->routeIs('staff.index') ? 'active' : '' }}" id="nav-staff-index-link">
                         Atur Staff
                     </a>
                 @endif
-                @if ($authUser && $authUser->isAdminPlatform())
+                @if ($authUser && ($authUser->isAdminPlatform() || $authUser->isAdminPerusahaan()))
                     <a href="{{ route('register') }}" class="nav-link {{ request()->routeIs('register') ? 'active' : '' }}" id="nav-register-link">
                         Tambah Staff / User
                     </a>
@@ -58,6 +58,8 @@
                     <div class="user-name">{{ $authUser->name }}</div>
                     @if ($authUser->isAdminPlatform())
                         <span class="role-badge role-badge-admin">Admin Platform</span>
+                    @elseif ($authUser->isAdminPerusahaan())
+                        <span class="role-badge role-badge-admin-perusahaan" style="background:#7c3aed;color:#fff;padding:0.25rem 0.5rem;border-radius:4px;font-size:0.75rem;font-weight:600;">Admin Perusahaan</span>
                     @elseif ($authUser->isAdminGudang())
                         <span class="role-badge role-badge-admin-gudang" style="background:#0284c7;color:#fff;padding:0.25rem 0.5rem;border-radius:4px;font-size:0.75rem;font-weight:600;">Admin Gudang</span>
                     @else

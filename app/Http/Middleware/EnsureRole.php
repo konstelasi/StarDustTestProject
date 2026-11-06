@@ -48,7 +48,7 @@ class EnsureRole
                 $allowed = true;
                 break;
             }
-            if ($user->role === $role) {
+            if ($user->role === $role || $user->role?->value === $role) {
                 $allowed = true;
                 break;
             }

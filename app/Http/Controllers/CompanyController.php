@@ -13,7 +13,12 @@ class CompanyController extends Controller
 
     public function index()
     {
-        $companies = Company::withCount('users')->orderBy('name')->get();
+        $user = auth()->user();
+        if ($user && $user->isAdminPerusahaan()) {
+            $companies = $user->managedCompanies()->withCount('users')->orderBy('name')->get();
+        } else {
+            $companies = Company::withCount('users')->orderBy('name')->get();
+        }
         $activeId = Tenant::id();
 
         return view('companies.index', compact('companies', 'activeId'));
@@ -45,6 +50,11 @@ class CompanyController extends Controller
 
     public function select(Company $company)
     {
+        $user = auth()->user();
+        if ($user && $user->isAdminPerusahaan() && ! $user->managedCompanies()->where('companies.id', $company->id)->exists()) {
+            abort(403, 'Anda tidak memiliki hak akses ke perusahaan ini.');
+        }
+
         session([Tenant::SESSION_KEY => $company->id]);
         session()->forget('active_warehouse');
 

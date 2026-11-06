@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
+use App\Models\Company;
 use App\Models\User;
 use App\Support\Tenant;
 use Illuminate\Auth\Events\PasswordReset;
@@ -33,8 +35,9 @@ class AuthController extends Controller
     public function showRegisterForm(StarDust $stardust)
     {
         $warehouses = $this->getWarehouseList($stardust);
+        $companies = Company::orderBy('name')->get();
 
-        return view('auth.register', compact('warehouses'));
+        return view('auth.register', compact('warehouses', 'companies'));
     }
 
     /**
@@ -45,7 +48,8 @@ class AuthController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email',
-            'role' => 'required|string|in:admin_platform,admin_gudang,staff_gudang,admin,staff',
+            'role' => 'required|string|in:'.implode(',', UserRole::values()).',admin,staff',
+            'company_id' => 'nullable|integer|exists:companies,id',
             'id_warehouse' => 'nullable|integer',
         ], [
             'name.required' => 'Nama lengkap wajib diisi.',
@@ -54,29 +58,38 @@ class AuthController extends Controller
             'email.unique' => 'Email ini sudah terdaftar.',
             'role.required' => 'Peran (role) pengguna wajib dipilih.',
             'role.in' => 'Pilihan peran pengguna tidak valid.',
+            'company_id.exists' => 'Perusahaan yang dipilih tidak valid.',
         ]);
 
-        $isPlatform = in_array($request->role, ['admin_platform', 'admin'], true);
+        $roleEnum = UserRole::tryFromLegacy($request->role) ?? UserRole::StaffGudang;
+        $isPlatform = $roleEnum === UserRole::AdminPlatform;
+        $companyId = $isPlatform ? null : ($request->input('company_id') ?: Tenant::id());
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Str::random(40),
-            'role' => $request->role,
+            'role' => $roleEnum,
             'id_warehouse' => $request->id_warehouse ? (int) $request->id_warehouse : null,
-            'company_id' => $isPlatform ? null : Tenant::id(),
+            'company_id' => $companyId,
         ]);
 
         $roleLabel = $user->role_label;
         $message = "Pengguna baru {$user->name} ({$roleLabel}) berhasil didaftarkan!";
 
-        if ($request->filled('id_warehouse')) {
+        if ($user->isAdminPerusahaan() && $companyId) {
+            $user->managedCompanies()->syncWithoutDetaching([
+                $companyId => ['access_level' => 'manager'],
+            ]);
+            $message = "Admin Perusahaan {$user->name} berhasil didaftarkan dan ditugaskan ke perusahaan terkait!";
+        } elseif ($request->filled('id_warehouse')) {
             DB::table('warehouse_staff')->updateOrInsert(
                 [
                     'warehouse_id' => (int) $request->id_warehouse,
                     'user_id' => $user->id,
                 ],
                 [
+                    'role' => $user->role->value,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]

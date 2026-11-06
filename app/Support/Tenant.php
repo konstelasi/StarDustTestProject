@@ -18,6 +18,10 @@ class Tenant
         $user = auth()->user();
 
         if ($user) {
+            if ($user->isAdminPerusahaan() && session(self::SESSION_KEY)) {
+                return (int) session(self::SESSION_KEY);
+            }
+
             if (! $user->isAdminPlatform() && $user->company_id) {
                 return (int) $user->company_id;
             }
