@@ -55,10 +55,8 @@ if ! ssh-add -l > /dev/null 2>&1; then
   ssh-add "${key/#\~/$HOME}" || { echo "Error: could not unlock the ssh key for '${REMOTE_HOST}'." >&2; exit 1; }
 fi
 
-echo "==> Testing..."
-composer install --no-interaction --quiet
-php artisan test
-
+# The assets are built before the tests, so the tests see the same
+# public/build folder as they do on a laptop, where it already exists.
 echo "==> Building the assets..."
 npm ci
 npm run build
@@ -67,6 +65,10 @@ if [ ! -f public/build/manifest.json ]; then
   echo "Error: public/build/manifest.json not found after the build." >&2
   exit 1
 fi
+
+echo "==> Testing..."
+composer install --no-interaction --quiet
+php artisan test
 
 echo "==> Installing production dependencies..."
 composer install --no-dev --optimize-autoloader --no-interaction
