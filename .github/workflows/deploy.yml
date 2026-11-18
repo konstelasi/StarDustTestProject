@@ -1,0 +1,123 @@
+name: Deploy
+
+# Tests the app and uploads it to the host, the same as running
+# `bash deploy.sh` on a laptop. A push to develop deploys, so pushing is the one
+# press. It can also be started by hand from the Actions tab.
+#
+# The deploy runs the database migrations on the host. The tests run first and
+# stop it if they fail, but a migration is still a change to live data, so
+# check one before it reaches develop.
+on:
+  push:
+    branches: [develop]
+    # A change to documentation alone changes nothing in the app, so it does
+    # not deploy. A push that also touches code still does.
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+# A run in progress finishes. Requests that arrive meanwhile collapse into one
+# more run.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # The tests truncate tables and need MariaDB (phpunit.xml names the
+    # database stardust_test). This one lives only for the run and has nothing
+    # to do with the host's database, which the tests never reach.
+    services:
+      mariadb:
+        image: mariadb:11
+        env:
+          MARIADB_ROOT_PASSWORD: ci-only
+          MARIADB_DATABASE: stardust_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: ci-only
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned to a commit, because a tag can be moved and this job later holds
+      # the SSH key. Update the SHA by hand when a new release is wanted.
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.4'
+          extensions: intl, mbstring, pdo_mysql, curl, dom, fileinfo, zip, gd, bcmath
+          tools: composer
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # The tests need an application key, which a laptop gets from its .env.
+      # This one is made for the run, used by the tests only and thrown away.
+      # deploy.sh never ships a .env, so the host keeps its own key.
+      - name: Make a key for the tests
+        run: echo "APP_KEY=base64:$(openssl rand -base64 32)" >> "$GITHUB_ENV"
+
+      # The tests truncate tables before they set anything up, so the tables
+      # must exist already, as on a laptop where these two commands have been
+      # run once. migrate makes the Laravel tables. inventory:setup makes the
+      # StarDust ones (stardust_*, entry_*), which have no migration files.
+      # This builds both in the throwaway database.
+      - name: Build the test database
+        run: |
+          composer install --no-interaction --quiet
+          DB_DATABASE=stardust_test php artisan migrate --force
+          DB_DATABASE=stardust_test php artisan inventory:setup
+
+      # The same `konstelasi` alias deploy.sh expects on a laptop. Every value
+      # is a repository secret, because the logs of a public repository are
+      # public and GitHub hides secret values in them.
+      - name: Set up ssh
+        env:
+          SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+          SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          for name in SSH_HOST SSH_PORT SSH_USER SSH_KEY SSH_KNOWN_HOSTS; do
+            if [ -z "${!name}" ]; then
+              echo "The repository secret for $name is missing." >&2
+              exit 1
+            fi
+          done
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          {
+            echo "Host konstelasi"
+            echo "  HostName $SSH_HOST"
+            echo "  Port $SSH_PORT"
+            echo "  User $SSH_USER"
+            echo "  IdentityFile ~/.ssh/deploy_key"
+            echo "  IdentitiesOnly yes"
+            echo "  StrictHostKeyChecking yes"
+          } > ~/.ssh/config
+
+      - name: Deploy
+        run: bash deploy.sh
