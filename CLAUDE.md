@@ -1,3 +1,5 @@
+@.agent/rules/core.md
+
 <laravel-boost-guidelines>
 === foundation rules ===
 
