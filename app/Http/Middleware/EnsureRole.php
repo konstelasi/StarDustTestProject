@@ -40,7 +40,9 @@ class EnsureRole
                 $allowed = true;
                 break;
             }
-            if ($role === 'admin' && $user->isAdmin()) {
+            // Token lama 'admin' berarti Admin Platform saja. isAdmin() mencakup semua tingkat admin,
+            // sehingga memakainya di sini membuka rute platform bagi admin perusahaan dan admin gudang.
+            if ($role === 'admin' && $user->isAdminPlatform()) {
                 $allowed = true;
                 break;
             }

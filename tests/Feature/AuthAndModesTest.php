@@ -55,7 +55,7 @@ class AuthAndModesTest extends TestCase
 
         $inventoryResponse = $this->get('/inventory');
         $inventoryResponse->assertStatus(200);
-        $inventoryResponse->assertSee('Admin System');
+        $inventoryResponse->assertSee('Admin Platform');
         $inventoryResponse->assertSee('Bulk Write');
     }
 
@@ -138,7 +138,7 @@ class AuthAndModesTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('Peran Pengguna (Role)');
-        $response->assertSee('Staff Gudang (Staff)');
+        $response->assertSee('Staff Gudang (Operasional)');
         $response->assertSee('Administrator Platform');
         $response->assertSee('Admin Gudang');
     }
@@ -246,6 +246,25 @@ class AuthAndModesTest extends TestCase
         // Cannot toggle app mode
         $appModeResponse = $this->post('/app-mode/toggle');
         $appModeResponse->assertStatus(403);
+    }
+
+    public function test_admin_gudang_cannot_create_warehouse_or_bulk_import(): void
+    {
+        $adminGudang = User::where('email', 'admingudang@stardust.com')->first();
+        $this->actingAs($adminGudang);
+
+        $this->get('/warehouses/create')->assertStatus(403);
+        $this->post('/inventory/bulk-import')->assertStatus(403);
+    }
+
+    public function test_admin_perusahaan_cannot_toggle_app_mode_create_warehouse_or_bulk_import(): void
+    {
+        $adminPerusahaan = User::where('email', 'adminperusahaan@stardust.com')->first();
+        $this->actingAs($adminPerusahaan);
+
+        $this->post('/app-mode/toggle')->assertStatus(403);
+        $this->get('/warehouses/create')->assertStatus(403);
+        $this->post('/inventory/bulk-import')->assertStatus(403);
     }
 
     public function test_register_sends_password_setup_email_without_password_field(): void
